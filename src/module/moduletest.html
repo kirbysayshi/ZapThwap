@@ -6,13 +6,21 @@
 	</head>
 	<body>
 		
-		<script src="Module.js" type="text/javascript" charset="utf-8"></script>
+		<script src="Module.js" type="text/javascript"></script>
 		<script type="text/javascript" charset="utf-8">
 			//module.setBasePath('');
-			module(function(){
+			module([
+				'ModTest'
+				,'ModTestDependency'
+				,'ModTestDependency2'
+				,'ModTestDependency3'
+			], function(){
+				console.log('all modules loaded and ready!');
 				ModTest.awesomeFunction();
 			});
 		</script>
+		<!-- because this is loaded first, it is defacto the main script -->
 		<script src="ModTest.js" type="text/javascript" charset="utf-8"></script>
+		
 	</body>
 </html>

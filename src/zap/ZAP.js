@@ -79,6 +79,9 @@ ZAP.CGLM = (function(){
 	return self;
 })();
 
+//---------------------------------------------------------------------
+// Basic DOM manipulation
+//---------------------------------------------------------------------
 ZAP.DOM = {
 	CE: function(nodeType, css){
 		var n = document.createElement(nodeType);
@@ -95,6 +98,6 @@ ZAP.DOM = {
 	}
 }
 
-
+window.ZAP = ZAP;
 
 })();

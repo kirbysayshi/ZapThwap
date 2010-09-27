@@ -1,4 +1,4 @@
-ZAP.entities = (function(){
+ZAP.Entities = (function(){
 
 //---------------------------------------------------------------------
 // Sprite: a bitmap-based animation sequence
@@ -76,9 +76,35 @@ DOMSprite.prototype.draw = function(){
 	this.elStyle.top = this.pos[1] + "px";
 }
 
+function Box(w, h){
+	this.materialType = "";
+	this.spriteObject = new DOMSprite('', [], []);
+	this.physicsObject = new THWAP.Body();
+	var  v1 = new THWAP.Vertex(vec3.create([0,0,0]))
+		,v2 = new THWAP.Vertex(vec3.create([w,0,0]))
+		,v3 = new THWAP.Vertex(vec3.create([w,h,0]))
+		,v4 = new THWAP.Vertex(vec3.create([0,h,0]))
+		,tc = new THWAP.LinearConstraint(v1,v2) // top
+		,rc = new THWAP.LinearConstraint(v2,v3) // right
+		,bc = new THWAP.LinearConstraint(v3,v4) // bottom
+		,lc = new THWAP.LinearConstraint(v4,v1) // left
+		,dc = new THWAP.LinearConstraint(v1,v3) // cross down
+		,uc = new THWAP.LinearConstraint(v4,v2); // cross up
+	dc.collidable = false; uc.collidable = false;
+	this.physicsObject.vlist.push(v1, v2, v3, v4);
+	this.physicsObject.clist.push(tc, rc, bc, lc, dc, uc);
+	this.physicsObject.regA = v1;
+	this.physicsObject.regB = v2;
+}
+Box.prototype = {
+	
+}
+
+
 return {
 	Sprite: Sprite,
-	DOMSprite: DOMSprite
+	DOMSprite: DOMSprite,
+	Box: Box
 }
 
 })();

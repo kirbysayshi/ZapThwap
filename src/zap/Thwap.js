@@ -14,6 +14,11 @@ World.prototype.addVertex = function(v){
 }
 World.prototype.addBody = function(b){
 	this.blist.push(b);
+	for(var i = 0; i < b.constraints.length; i++){
+		var c = b.constraints[i];
+		this.clist.push(c);
+		this.vlist.push(c.v1, c.v2);
+	}
 }
 
 //---------------------------------------------------------------------
@@ -136,10 +141,20 @@ function LinearConstraint(v1, v2, restLen){
 	this.v1 = v1;
 	this.v2 = v2;
 	// restLength[min,max] if both are the same it is very rigid
-	this.restLength = [0,0]; // todo: calculate this
+	if(restLen == undefined){
+		var diff = vec3.create();
+		vec3.subtract(v1.cpos, v2.cpos, diff);
+		var len = vec3.length(diff);
+		this.restLength = [len, len]; // calculated
+	} else {
+		this.restLength = restLen
+	}
+	
 	this.isStatic = false; // cannot move, ie static geometry (like the ground)
 	this.collidable = true;
-	this.normal = this.computeNormal(); // calculate normal here
+	// normal is assumed to be the "left" side of v2 - v1
+	this.normal = vec3.create([0,0,0]);
+	this.computeNormal(); // calculate normal here
 	
 	if(!v1.isFree && !v2.isFree){
 		// this flag tells us we don't need to recalculate the normal
@@ -150,19 +165,112 @@ LinearConstraint.prototype.satisfy = function(){
 	
 }
 LinearConstraint.prototype.computeNormal = function(){
-	
+	var diff = vec3.create();
+	vec3.subtract(this.v2.cpos, this.v1.cpos, diff);
+	this.normal[0] = -diff[1];
+	this.normal[1] = -diff[0]; // I think this needs to be negated also
+	this.normal[2] = 0;
 }
 
 //---------------------------------------------------------------------
 // ThwapBody: collection of constraints and vertices, with orientation
 //---------------------------------------------------------------------
 function Body(){
-	this.constraints = [];
+	this.clist = [];
+	this.vlist = [];
+	this.regA = {};
+	this.regB = {};
+	this.orientation = mat4.create();
+	this.rotation = 0;
+	//this.dirty = true; // let's optimize later
 }
-// transform all vertices counter-clockwise by degrees
-Body.prototype.rotate = function(degrees){
+Body.prototype.computeOrientationMatrix = function(){
+	//if(this.dirty === false) return this.orientation;
+	var regRay = vec3.create()
+		,oriRay = vec3.create([1,0,0]) // unit vector!
+		,ori4 = mat4.identity(this.orientation);
+	vec3.subtract(this.regB.cpos, this.regA.cpos, regRay);
+	vec3.normalize(regRay);
+	this.rotation = Math.acos(vec3.dot(regRay, oriRay));
+	mat4.translate(ori4, this.regA.cpos);
+	mat4.rotateZ(ori4, this.rotation);
+	//this.dirty = false;
+	return this.orientation;
+};
+Body.prototype.moveTo = function(vec){
+	// make an identity matrix
+	var mat = mat4.identity(mat4.create());
+	// translate blank matrix to difference between registration A and position
+	mat4.translate(
+		mat, vec3.subtract(vec, this.regA.cpos)
+	);
 	
+	// apply matrix to each vertex of each constraint
+	for(var i = 0; i < this.vlist.length; i++){
+		var v = this.vlist[i];
+		mat4.multiplyVec3(mat, v.cpos);
+	}
 }
+// transform all vertices clockwise by radians
+// since +y is down, default rotation is clockwise
+Body.prototype.rotate = function(rads){
+	var rMatrix = mat4.rotateZ(mat4.identity(mat4.create()), rads);
+	
+	// apply matrix to each vertex of each constraint
+	for(var i = 0; i < this.vlist.length; i++){
+		var v = this.vlist[i];
+		mat4.multiplyVec3(rMatrix, v.cpos);
+	}
+};
+
+// Taken from http://blog.jcoglan.com/2007/07/23/writing-a-linked-list-in-javascript/
+function LL(){}
+LL.prototype = {
+	length: 0
+	,first: null
+	,last: null
+	,append: function(node){
+		if(this.first == null){
+			this.first = node;
+			this.last = node;
+		} else {
+			node.prev = this.last;
+			node.next = this.first;
+			this.first.prev = node;
+			this.last.next = node;
+			this.last = node;
+		}
+		this.length++;
+	}
+	,insertAfter: function(node, newNode){
+		newNode.prev = node;
+		newNodw.next = node.next;
+		node.next.prev = newNode;
+		node.next = newNode;
+		if (newNode.prev == this.last) { this.last = newNode; }
+		this.length++;
+	}
+	,remove: function(node){
+		if(this.length > 1){
+			node.prev.next = node.next;
+			node.next.prev = node.prev;
+			if(node == this.first) { this.first = node.next; }
+			if(node == this.last) { this.last = node.prev; }
+		} else {
+			this.first = null;
+			this.last = null
+		}
+		node.prev = null;
+		node.next = null;
+		this.length--;
+	}
+};
+
+function LLNode(obj){
+	this.prev = null; 
+	this.next = null;
+	this.obj = obj;
+};
 
 
 //---------------------------------------------------------------------
@@ -171,6 +279,7 @@ Body.prototype.rotate = function(degrees){
 window.THWAP = {
 	Vertex: Vertex
 	,LinearConstraint: LinearConstraint
+	,Body: Body
 	,World: World
 };
 })();

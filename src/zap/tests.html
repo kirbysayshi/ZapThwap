@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script src="../lib/jquery-1.4.2.min.js"></script>
+ 	<link rel="stylesheet" href="../lib/qunit.css" type="text/css" media="screen" />
+	<script type="text/javascript" src="../lib/qunit.js"></script>
+
+	<script type="text/javascript" src="../lib/glMatrix.js"></script>
+	
+	<script type="text/javascript" src="Thwap.js"></script>
+	<script type="text/javascript" src="ZAP.js"></script>
+	<script type="text/javascript" src="Entities.js"></script>
+
+  <script>
+  $(document).ready(function(){
+
+var ctx = $("#testCvs")[0].getContext('2d');
+
+
+module("THWAP");
+
+test("LinearConstraint.normal", function(){
+
+	expect(2);
+
+	var  v1 = new THWAP.Vertex([0,0,0])
+		,v2 = new THWAP.Vertex([20,0,0])
+		,c = new THWAP.LinearConstraint(v1, v2)
+		,cReverse = new THWAP.LinearConstraint(v2, v1);
+	
+	equal(c.normal[1], -20, "Test y-coord of normal to horizontal ray (segment) moving left to right");
+	equal(cReverse.normal[1], 20, "Test y-coord of normal to horizontal ray (segment) moving right to left");
+});
+
+test("Box.(Body)moveTo", function(){
+	expect(6);
+	var b = new ZAP.Entities.Box(10, 5);
+	b.physicsObject.moveTo([20,10,0]);
+	same(b.physicsObject.regA.cpos, vec3.create([20,10,0]), "Test position of registration point A");
+	same(b.physicsObject.regB.cpos, vec3.create([30,10,0]), "Test position of registration point B");
+	
+	var  v1 = b.physicsObject.vlist[0]
+		,v2 = b.physicsObject.vlist[1]
+		,v3 = b.physicsObject.vlist[2]
+		,v4 = b.physicsObject.vlist[3];
+	
+	same(v1.cpos, vec3.create([20,10,0]), "Test position of upper left vertex");
+	same(v2.cpos, vec3.create([30,10,0]), "Test position of upper right vertex");
+	same(v3.cpos, vec3.create([30,15,0]), "Test position of lower right vertex");
+	same(v4.cpos, vec3.create([20,15,0]), "Test position of lower left vertex");
+});
+
+test('Box.(Body)computeOrientationMatrix', function(){
+	
+	var b = new ZAP.Entities.Box(10, 5)
+		,mat = b.physicsObject.computeOrientationMatrix();
+	
+	same(mat, mat4.identity(mat4.create()), "Initial orientation should be identity matrix");
+	
+	b.physicsObject.moveTo([20,50,0]);
+	b.physicsObject.computeOrientationMatrix();
+	same( [mat[12], mat[13], mat[14]], [20,50,0], "Translation should be represented in orientation matrix");
+	
+	b.physicsObject.moveTo([0,0,0]);
+	b.physicsObject.computeOrientationMatrix();
+	same( [mat[12], mat[13], mat[14]], [0,0,0], "Translation back to origin should be represented in orientation matrix");
+});
+
+test('Box.(Body)rotate', function(){
+	
+	var b = new ZAP.Entities.Box(100, 50)
+		,mat = b.physicsObject.computeOrientationMatrix();
+
+	b.physicsObject.rotate(-Math.PI/2);
+
+	var  v1 = b.physicsObject.vlist[0]
+		,v2 = b.physicsObject.vlist[1]
+		,v3 = b.physicsObject.vlist[2]
+		,v4 = b.physicsObject.vlist[3]
+
+	// draw something to 
+	var ctx = $("#testCvs")[0].getContext('2d');
+	ctx.fillStyle = "#FF0000"; // red
+	ctx.beginPath();
+	ctx.arc(v1.cpos[0] + 100, v1.cpos[1] + 100, 1, 0, Math.PI*2, false);
+	ctx.fill();
+	ctx.fillStyle = "#CC66FF"; // purple
+	ctx.beginPath();
+	ctx.arc(v2.cpos[0] + 100, v2.cpos[1] + 100, 1, 0, Math.PI*2, false);
+	ctx.fill();
+	ctx.fillStyle = "#33FFFF"; // aquamarine
+	ctx.beginPath();
+	ctx.arc(v3.cpos[0] + 100, v3.cpos[1] + 100, 1, 0, Math.PI*2, false);
+	ctx.fill();
+	ctx.fillStyle = "#99CC33"; // green
+	ctx.beginPath();
+	ctx.arc(v4.cpos[0] + 100, v4.cpos[1] + 100, 1, 0, Math.PI*2, false);
+	ctx.fill();
+
+	function vectorEpsilonCheck(vecA, vecB){
+		var EPSILON = 0.001;
+		if( Math.abs(vecA[0] - vecB[0]) < EPSILON ) {}
+		else return false;
+		if( Math.abs(vecA[1] - vecB[1]) < EPSILON ) {}
+		else return false;
+		if( Math.abs(vecA[2] - vecB[2]) < EPSILON ) {}
+		else return false;
+		return true;
+	}
+
+	ok( vectorEpsilonCheck( v1.cpos, [0,0,0]), "Upper left corner should be at origin");
+	ok( vectorEpsilonCheck( v2.cpos, [0,-100,0]), "Upper right corner should be above");
+	ok( vectorEpsilonCheck( v3.cpos, [50,-100,0]), "Lower right corner should be above and to the right");
+	ok( vectorEpsilonCheck( v4.cpos, [50,0,0]), "Lower left corner should be to the right");
+	
+	
+});
+
+  });
+  </script>
+  
+</head>
+<body>
+ <h1 id="qunit-header">ZAP Unit Tests</h1>
+ <h2 id="qunit-banner"></h2>
+ <h2 id="qunit-userAgent"></h2>
+ <ol id="qunit-tests"></ol>
+
+  <canvas id="testCvs" width="480" height="320" style="border: 1px solid #CCCCCC"></canvas>
+
+</body>
+</html>
