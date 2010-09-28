@@ -95,9 +95,13 @@ Vertex.prototype.collideConstraint = function(c){
 	vec3.subtract(this.ppos, vec3.scale(velocityCollisionPlane, -this.cfric), this.ppos);
 	
 	// apply collision to each vertex, if they are not free?
+	
+	return this;
 }
 Vertex.prototype.collideVertex = function(){
 	if(this.collidable === false) return;
+	
+	return this;
 }
 Vertex.prototype.update = function(dt){		
 	var s = this,
@@ -118,6 +122,7 @@ Vertex.prototype.update = function(dt){
 	
 	// reset acceleration
 	s.acel[0] = s.acel[1] = s.acel[2] = 0;
+	return this;
 }
 Vertex.prototype.getVelocity = function(dest){
 	if(!dest) { dest = vec3.create(); }
@@ -132,6 +137,7 @@ Vertex.prototype.checkBounds = function(){
 	this.cpos[0] = Math.max(this.cpos[0] - this.rad, this.rad);
 	this.cpos[1] = Math.max(this.cpos[1] - this.rad, this.rad);
 	this.cpos[2] = Math.max(this.cpos[2] - this.rad, this.rad);
+	return this;
 }
 
 //---------------------------------------------------------------------
@@ -180,6 +186,7 @@ function Body(){
 	this.vlist = [];
 	this.regA = {};
 	this.regB = {};
+	this.solidity = 1; // how many times the constraints and vertices are updated per loop
 	this.orientation = mat4.create();
 	this.rotation = 0;
 	//this.dirty = true; // let's optimize later
@@ -192,6 +199,7 @@ Body.prototype.computeOrientationMatrix = function(){
 	vec3.subtract(this.regB.cpos, this.regA.cpos, regRay);
 	vec3.normalize(regRay);
 	this.rotation = Math.acos(vec3.dot(regRay, oriRay));
+	//console.log('acos rotation: ' + this.rotation + ' regRay: ' + regRay);
 	mat4.translate(ori4, this.regA.cpos);
 	mat4.rotateZ(ori4, this.rotation);
 	//this.dirty = false;
@@ -222,6 +230,20 @@ Body.prototype.rotate = function(rads){
 		mat4.multiplyVec3(rMatrix, v.cpos);
 	}
 };
+Body.prototype.update = function(dt){
+	for(var k = 0; k < this.solidity; k++){
+		var  i = 0
+			,j = 0;
+		
+		for(; i < this.vlist.length; i++){
+			this.vlist[i].update(dt);
+		}
+	
+		for(; j < this.clist.length; j++){
+			this.clist[j].satisfy(dt);
+		}
+	}
+}
 
 // Taken from http://blog.jcoglan.com/2007/07/23/writing-a-linked-list-in-javascript/
 function LL(){}
