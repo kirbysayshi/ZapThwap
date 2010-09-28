@@ -195,13 +195,28 @@ Body.prototype.computeOrientationMatrix = function(){
 	//if(this.dirty === false) return this.orientation;
 	var regRay = vec3.create()
 		,oriRay = vec3.create([1,0,0]) // unit vector!
+		//,w = vec3.create() // the normal of rotation, the z axis
 		,ori4 = mat4.identity(this.orientation);
+		
+	// create registration ray
 	vec3.subtract(this.regB.cpos, this.regA.cpos, regRay);
 	vec3.normalize(regRay);
+	
+	// determine normal of rotation... but we know it's the z
+	//vec3.cross(oriRay, regRay, w);
+
 	this.rotation = Math.acos(vec3.dot(regRay, oriRay));
-	//console.log('acos rotation: ' + this.rotation + ' regRay: ' + regRay);
+	//this.rotation = Math.asin(vec3.length(w));
+
+	// normally the cross product would be used, but we don't need it
+	// if z value is negative, rotation should be negative
+	if(regRay[1] < 0 && this.rotation > 0) { this.rotation *= -1; }
+	// if z value is positive, rotation should be positive
+	if(regRay[1] > 0 && this.rotation < 0) { this.rotation *= -1; }
+
 	mat4.translate(ori4, this.regA.cpos);
 	mat4.rotateZ(ori4, this.rotation);
+	//mat4.rotate(ori4, this.rotation, w);
 	//this.dirty = false;
 	return this.orientation;
 };
