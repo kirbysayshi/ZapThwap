@@ -62,7 +62,7 @@ var Assets = (function(){
 				request.onreadystatechange = function () {
 					if (request.readyState == 4 && request.status == 200) {
 						db.assets[options.name] = request.responseText;
-						onLoad(text);
+						onLoad(request.responseText);
 					}
 				};
 				

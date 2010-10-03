@@ -1,6 +1,7 @@
 (function(){
 
 ZAP = {};
+ZAP.EPSILON = 0.001;
 
 //---------------------------------------------------------------------
 // Basic Prototypical Inheritance
@@ -38,7 +39,7 @@ ZAP.CGLM = (function(){
 		var d = +new Date()
 			,currentFrameCount = Math.round( (d - startTime) / 1000 * targetFPS )
 			,deltaFrames = currentFrameCount - lastFrameCount
-			,deltaTimePerFrame = (d - startTime) / deltaFrames
+			,deltaTimePerFrame = (d - lastTime) / deltaFrames
 			,i = 0;
 		
 		if(deltaFrames > 0){

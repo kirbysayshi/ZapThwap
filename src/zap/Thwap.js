@@ -5,9 +5,9 @@
 //---------------------------------------------------------------------
 function World(){
 	this.dim = [0,0,0];
-	this.vlist = [];
-	this.clist = [];
-	this.blist = [];
+	this.vlist = []; // vertex list
+	this.clist = []; // constraint list
+	this.blist = []; // body list, only used for collisions?
 }
 World.prototype.addVertex = function(v){
 	this.vlist.push(v);
@@ -20,20 +20,36 @@ World.prototype.addBody = function(b){
 		this.vlist.push(c.v1, c.v2);
 	}
 }
+World.prototype.step = function(dt){
+	var v = this.vlist.length-1
+		c = this.clist.length-1;
+	
+	// update verticies
+	while(v){
+		this.vlist[v].update(dt);
+		v--;
+	}
 
+	// update constraints
+	while(c){
+		this.clist[c].update(dt);
+		c--;
+	}
+
+}
 //---------------------------------------------------------------------
 // ThwapVertex
 //---------------------------------------------------------------------
 function Vertex(position){
-	this.cpos = position || vec3.create([0,0,0]);
-	this.ppos = position || vec3.create([0,0,0]); 
+	this.cpos = vec3.create(position || [0,0,0]);
+	this.ppos = vec3.create(position || [0,0,0]); 
 	this.acel = vec3.create([0,0,0]);
 	this.grav = vec3.create([0,0,0]); 
-	this.isFree = false;
+	this.isFree = true;
 	this.collidable = true;
 	this.rad  = 8;
 	this.mass = 10;
-	this.gfric = 0.01; // basically passive friction
+	this.gfric = 0.1; // basically passive friction
 	this.cfric = 0.1; // collision friction
 }	
 Vertex.prototype.collideConstraint = function(c){
@@ -103,7 +119,9 @@ Vertex.prototype.collideVertex = function(){
 	
 	return this;
 }
-Vertex.prototype.update = function(dt){		
+Vertex.prototype.update = function(dt){	
+	if(this.isFree === false) return this;
+		
 	var s = this,
 		temp = vec3.create(s.cpos), // save for later
 		vel = vec3.create();
@@ -112,7 +130,8 @@ Vertex.prototype.update = function(dt){
 	vec3.add(s.acel, s.grav);
 
 	// calculate current velocity (vel is == ) 
-	vec3.add( vec3.subtract(s.cpos, s.ppos, vel), vec3.scale(s.acel, dt*dt) );
+	vec3.subtract(s.cpos, s.ppos, vel)
+	vec3.add( vel, vec3.scale(s.acel, dt*dt) );
 	
 	// add new vel to current position
 	vec3.add( s.cpos, vel );
@@ -168,16 +187,22 @@ function LinearConstraint(v1, v2, restLen){
 	}
 }
 LinearConstraint.prototype.satisfy = function(){
-	
+	return this;
 }
 LinearConstraint.prototype.computeNormal = function(){
+	if(this.isStatic === true) { return this; }
+	
 	var diff = vec3.create();
 	vec3.subtract(this.v2.cpos, this.v1.cpos, diff);
 	this.normal[0] = -diff[1];
 	this.normal[1] = -diff[0]; // I think this needs to be negated also
 	this.normal[2] = 0;
+	return this;
 }
-
+LinearConstraint.prototype.update = function(dt){
+	this.satisfy()
+		.computeNormal();
+}
 //---------------------------------------------------------------------
 // ThwapBody: collection of constraints and vertices, with orientation
 //---------------------------------------------------------------------
@@ -195,28 +220,27 @@ Body.prototype.computeOrientationMatrix = function(){
 	//if(this.dirty === false) return this.orientation;
 	var regRay = vec3.create()
 		,oriRay = vec3.create([1,0,0]) // unit vector!
-		//,w = vec3.create() // the normal of rotation, the z axis
 		,ori4 = mat4.identity(this.orientation);
 		
 	// create registration ray
 	vec3.subtract(this.regB.cpos, this.regA.cpos, regRay);
 	vec3.normalize(regRay);
-	
-	// determine normal of rotation... but we know it's the z
-	//vec3.cross(oriRay, regRay, w);
 
+	// compute angle
 	this.rotation = Math.acos(vec3.dot(regRay, oriRay));
-	//this.rotation = Math.asin(vec3.length(w));
 
-	// normally the cross product would be used, but we don't need it
+	// normally the cross product would be used, but we don't need it,
+	// since the axis of rotation is implicitly z
 	// if z value is negative, rotation should be negative
 	if(regRay[1] < 0 && this.rotation > 0) { this.rotation *= -1; }
 	// if z value is positive, rotation should be positive
 	if(regRay[1] > 0 && this.rotation < 0) { this.rotation *= -1; }
 
+	// move matrix to proper position
 	mat4.translate(ori4, this.regA.cpos);
+	// apply rotation to matrix...
 	mat4.rotateZ(ori4, this.rotation);
-	//mat4.rotate(ori4, this.rotation, w);
+
 	//this.dirty = false;
 	return this.orientation;
 };
@@ -224,9 +248,7 @@ Body.prototype.moveTo = function(vec){
 	// make an identity matrix
 	var mat = mat4.identity(mat4.create());
 	// translate blank matrix to difference between registration A and position
-	mat4.translate(
-		mat, vec3.subtract(vec, this.regA.cpos)
-	);
+	mat4.translate( mat, vec3.subtract(vec, this.regA.cpos)  );
 	
 	// apply matrix to each vertex of each constraint
 	for(var i = 0; i < this.vlist.length; i++){
@@ -259,56 +281,11 @@ Body.prototype.update = function(dt){
 		}
 	}
 }
-
-// Taken from http://blog.jcoglan.com/2007/07/23/writing-a-linked-list-in-javascript/
-function LL(){}
-LL.prototype = {
-	length: 0
-	,first: null
-	,last: null
-	,append: function(node){
-		if(this.first == null){
-			this.first = node;
-			this.last = node;
-		} else {
-			node.prev = this.last;
-			node.next = this.first;
-			this.first.prev = node;
-			this.last.next = node;
-			this.last = node;
-		}
-		this.length++;
+Body.prototype.addAcceleration = function(vec){
+	for(var i = 0; i < this.vlist.length; i++){
+		vec3.add(this.vlist[i].acel, vec);
 	}
-	,insertAfter: function(node, newNode){
-		newNode.prev = node;
-		newNodw.next = node.next;
-		node.next.prev = newNode;
-		node.next = newNode;
-		if (newNode.prev == this.last) { this.last = newNode; }
-		this.length++;
-	}
-	,remove: function(node){
-		if(this.length > 1){
-			node.prev.next = node.next;
-			node.next.prev = node.prev;
-			if(node == this.first) { this.first = node.next; }
-			if(node == this.last) { this.last = node.prev; }
-		} else {
-			this.first = null;
-			this.last = null
-		}
-		node.prev = null;
-		node.next = null;
-		this.length--;
-	}
-};
-
-function LLNode(obj){
-	this.prev = null; 
-	this.next = null;
-	this.obj = obj;
-};
-
+}
 
 //---------------------------------------------------------------------
 // Export

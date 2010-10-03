@@ -67,35 +67,10 @@ test('Box.(Body)computeOrientationMatrix', function(){
 });
 
 test('Box.(Body)rotate', function(){
-	
-	var b = new ZAP.Entities.Box(100, 50)
-		,mat = b.physicsObject.computeOrientationMatrix();
+	expect(4);
+	var b = new ZAP.Entities.Box(100, 50);
 
 	b.physicsObject.rotate(-Math.PI/2);
-
-	var  v1 = b.physicsObject.vlist[0]
-		,v2 = b.physicsObject.vlist[1]
-		,v3 = b.physicsObject.vlist[2]
-		,v4 = b.physicsObject.vlist[3]
-
-	// draw something to 
-	var ctx = $("#testCvs")[0].getContext('2d');
-	ctx.fillStyle = "#FF0000"; // red
-	ctx.beginPath();
-	ctx.arc(v1.cpos[0] + 100, v1.cpos[1] + 100, 1, 0, Math.PI*2, false);
-	ctx.fill();
-	ctx.fillStyle = "#CC66FF"; // purple
-	ctx.beginPath();
-	ctx.arc(v2.cpos[0] + 100, v2.cpos[1] + 100, 1, 0, Math.PI*2, false);
-	ctx.fill();
-	ctx.fillStyle = "#33FFFF"; // aquamarine
-	ctx.beginPath();
-	ctx.arc(v3.cpos[0] + 100, v3.cpos[1] + 100, 1, 0, Math.PI*2, false);
-	ctx.fill();
-	ctx.fillStyle = "#99CC33"; // green
-	ctx.beginPath();
-	ctx.arc(v4.cpos[0] + 100, v4.cpos[1] + 100, 1, 0, Math.PI*2, false);
-	ctx.fill();
 
 	function vectorEpsilonCheck(vecA, vecB){
 		var EPSILON = 0.001;
@@ -108,11 +83,47 @@ test('Box.(Body)rotate', function(){
 		return true;
 	}
 
+	var  v1 = b.physicsObject.vlist[0]
+		,v2 = b.physicsObject.vlist[1]
+		,v3 = b.physicsObject.vlist[2]
+		,v4 = b.physicsObject.vlist[3]
+
 	ok( vectorEpsilonCheck( v1.cpos, [0,0,0]), "Upper left corner should be at origin");
 	ok( vectorEpsilonCheck( v2.cpos, [0,-100,0]), "Upper right corner should be above");
 	ok( vectorEpsilonCheck( v3.cpos, [50,-100,0]), "Lower right corner should be above and to the right");
 	ok( vectorEpsilonCheck( v4.cpos, [50,0,0]), "Lower left corner should be to the right");
 	
+});
+
+module("Entities");
+
+test('Box.(DOMSprite)rotate', function(){
+	expect(4);
+	
+	var b = new ZAP.Entities.Box(62, 64);
+	
+	b.physicsObject.rotate(Math.PI*0.1);
+	var positive = mat4.create(b.physicsObject.computeOrientationMatrix());
+
+	// reset
+	b.physicsObject.rotate(-Math.PI*0.1);
+	
+	b.physicsObject.rotate(-Math.PI*0.1);
+	var negative = mat4.create(b.physicsObject.computeOrientationMatrix());
+	
+	//console.log('positive: ' , positive)
+	//console.log('negative: ', negative);
+	
+	equals( positive[0], negative[0], 'positive and negative m0 should be equal' );
+	equals( positive[1], -negative[1], 'positive and negative m1 should be opposite' );
+	
+	equals( positive[4], -negative[4], 'positive and negative m4 should be opposite' );
+	equals( positive[5], negative[5], 'positive and negative m5 should be equal' );
+	
+	// draw some debug output for help
+	b.debugDraw($('#testCvs')[0].getContext('2d'), [0,0]);
+	b.spriteObject.attachTo($('#testDiv')[0]);
+	b.update(1); // trigger application of animations
 	
 });
 
@@ -121,12 +132,12 @@ test('Box.(Body)rotate', function(){
   
 </head>
 <body>
- <h1 id="qunit-header">ZAP Unit Tests</h1>
- <h2 id="qunit-banner"></h2>
- <h2 id="qunit-userAgent"></h2>
- <ol id="qunit-tests"></ol>
+	<h1 id="qunit-header">ZAP Unit Tests</h1>
+	<h2 id="qunit-banner"></h2>
+	<h2 id="qunit-userAgent"></h2>
+	<ol id="qunit-tests"></ol>
 
-  <canvas id="testCvs" width="480" height="320" style="border: 1px solid #CCCCCC"></canvas>
-
+	<canvas id="testCvs" width="480" height="320" style="border: 1px solid #CCCCCC"></canvas>
+	<div id="testDiv" style="position: relative; width: 480px; height: 320px; border: 1px solid #CCCCCC;"></div>
 </body>
 </html>

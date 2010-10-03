@@ -1,4 +1,5 @@
 .x-mirror { -moz-transform: scaleX(-1); -webkit-transform: scaleX(-1); transform: scaleX(-1); filter: fliph; /*IE*/ }
 
-#domWorld { position: relative; }
-#temp { position: absolute; height: 50px; width: 50px; border: 5px solid black; background-image: url(img/proto.png); }
+#domWorld { position: relative; height: 600px; }
+#cvsWorld { position: absolute; top: 0px; left: 0px; z-index: 1000; }
+.DOMSprite { border: 1px solid black; }

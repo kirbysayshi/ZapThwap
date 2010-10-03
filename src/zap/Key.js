@@ -7,7 +7,7 @@ var KEY = (function(W){
 	function onKeyDown(e){	
 		// webkit will repeat this event while held down
 		if(down[e.keyCode] === false){
-			down[e.keyCode] = { now: +new Date(), original: e };
+			down[e.keyCode] = { start: +new Date(), original: e };
 		}
 	}
 	
@@ -26,7 +26,7 @@ var KEY = (function(W){
 			var e = down[i];
 			if(e !== false){
 				// update event held length
-				e.delta = +new Date() - e.now;
+				e.delta = +new Date() - e.start;
 			}
 		}
 		handler(down);

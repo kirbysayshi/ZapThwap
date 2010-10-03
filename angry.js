@@ -1,4 +1,4 @@
-(function(){
+var ANGRY = (function(){
 
 var ANGRY = {};
 
@@ -6,26 +6,25 @@ ANGRY.init = function(){
 	var TWorld = new THWAP.World()
 		,$dWorld = $("#domWorld")
 		,$dView = $("#domViewport")
-		,box = new THWAP.Body()
-		,temp = ZAP.DOM.CE('div', {color: 'red'})
-		,tempRot = 0
-		,tempX = 0;
-		
-	temp.id = "temp";
-	$dWorld.append(temp);
+		,$cWorld = $("#cvsWorld")
+		,ctx = $cWorld[0].getContext('2d')
+		,box = new ZAP.Entities.Box(62, 64, 'src/zap/defaults/mmzmugs1sheet.gif')
+		,wall = new THWAP.LinearConstraint(
+			 new THWAP.Vertex([100,100,0])
+			,new THWAP.Vertex(100,300,0)
+		);
 	
-	ZAP.CGLM.register(function(){
+	box.spriteObject.attachTo($dWorld[0]);
+	
+	
+	
+	ZAP.CGLM.register(function priorityOne(dt){
 		KEY.dispatcher();
-	}, function(deltaTime){
-		ZAP.DOM.css(temp, {
-			//'-webkit-transform': 'translate3d('+tempX+'px, 0, 0) rotate('+tempRot+'deg)',
-			//'-moz-transform': 'translate3d('+tempX+'px, 0, 0) rotate('+tempRot+'deg)',
-			//'transform': 'translate3d('+tempX+'px, 0, 0) rotate('+tempRot+'deg)'
-			'-webkit-transform': 'rotate('+tempRot+'deg)',
-			'-moz-transform': 'rotate('+tempRot+'deg)',
-			'transform': 'rotate('+tempRot+'deg)'
-			//'-webkit-transition': '-webkit-transform '+ (deltaTime/1000) +'s'
-		});
+		
+		box.update(dt);
+	}, function priorityTwo(dt){
+		ctx.clearRect(0,0,2000,2000);
+		box.debugDraw(ctx, [0,0,0]);
 	});
 	
 	KEY.listen(function(down){
@@ -35,19 +34,23 @@ ANGRY.init = function(){
 		if(down[27].delta > 0){ ZAP.CGLM.stop(); }
 		
 		if(down[32].delta > 0){
-			tempRot += 5;
-			if(tempRot > 360) tempRot = 0;
-			transform = true;
+			
+		}
+		
+		if(down[87].delta > 0){ // W
+			box.physicsObject.addAcceleration([0,-0.01,0]);
+		}
+		
+		if(down[83].delta > 0){ // S
+			box.physicsObject.addAcceleration([0,0.01,0]);
 		}
 		
 		if(down[65].delta > 0){ // A
-			tempX -= 10;
-			transform = true;
+			box.physicsObject.addAcceleration([-0.01,0,0]);
 		}
 		
 		if(down[68].delta > 0){ // D
-			tempX += 10;
-			transform = true;
+			box.physicsObject.addAcceleration([0.01,0,0]);
 		}
 		
 	});
@@ -55,5 +58,5 @@ ANGRY.init = function(){
 	ZAP.CGLM.start();
 }
 
-ANGRY.init();
+return new ANGRY.init();
 })();
