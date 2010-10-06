@@ -16,14 +16,18 @@ World.prototype.addVertex = function(v){
 	return this;
 }
 World.prototype.addConstraint = function(c){
-	this.clist.push(c);
+	if(this.clist.indexOf(c) === -1){
+		this.clist.push(c);
+	}
+	
 	this.addVertex(c.v1);
 	this.addVertex(c.v2);
-	//this.vlist.push(c.v1, c.v2);
 	return this;
 }
 World.prototype.addBody = function(b){
-	this.blist.push(b);
+	if(this.blist.indexOf(b) === -1){
+		this.blist.push(b);
+	}
 	
 	for(var i = 0; i < b.clist.length; i++){
 		this.addConstraint(b.clist[i]);
@@ -47,9 +51,11 @@ World.prototype.step = function(dt){
 		c--;
 	}
 
-	// update body orientations
+	// update body orientations, bounding spheres...
 	while(b >= 0){
-		this.blist[b].computeOrientationMatrix();
+		this.blist[b]
+			.computeOrientationMatrix()
+			.computeBoundingSphere();
 		b--;
 	}
 
@@ -292,8 +298,10 @@ Body.prototype.computeOrientationMatrix = function(){
 	// apply rotation to matrix...
 	mat4.rotateZ(ori4, this.rotation);
 
+	mat4.set(this.orientation, ori4);
+
 	//this.dirty = false;
-	return this.orientation;
+	return this;
 };
 Body.prototype.moveTo = function(vec){
 	// make an identity matrix
@@ -307,6 +315,7 @@ Body.prototype.moveTo = function(vec){
 		mat4.multiplyVec3(mat, v.cpos);
 		mat4.multiplyVec3(mat, v.ppos);
 	}
+	return this;
 }
 // transform all vertices clockwise by radians
 // since +y is down, default rotation is clockwise
@@ -318,6 +327,7 @@ Body.prototype.rotate = function(rads){
 		var v = this.vlist[i];
 		mat4.multiplyVec3(rMatrix, v.cpos);
 	}
+	return this;
 };
 Body.prototype.update = function(dt){
 	for(var k = 0; k < this.solidity; k++){
@@ -332,11 +342,13 @@ Body.prototype.update = function(dt){
 			this.clist[j].update(dt);
 		}
 	}
+	return this;
 }
 Body.prototype.addAcceleration = function(vec){
 	for(var i = 0; i < this.vlist.length; i++){
 		vec3.add(this.vlist[i].acel, vec);
 	}
+	return this;
 }
 Body.prototype.computeBoundingSphere = function(){
 	if(this.vlist.length <= 0){

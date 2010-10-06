@@ -143,7 +143,7 @@ Box.prototype = {
 		this.spriteObject
 			.updateAnimation(dt)
 			.setOrientationMatrix(
-				this.physicsObject.computeOrientationMatrix())
+				this.physicsObject.orientation)
 			.draw();
 	}
 	,debugDraw: function(ctx, offset){
