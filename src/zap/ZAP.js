@@ -19,7 +19,7 @@ ZAP.inherits = function(child, parent) {
 //---------------------------------------------------------------------
 ZAP.CGLM = (function(){
 	var self = {}
-		,targetFPS = 60
+		,targetFPS = 30
 		,targetInterval = 1000 / targetFPS
 		,avgFps = 0
 		,currentFps = 0

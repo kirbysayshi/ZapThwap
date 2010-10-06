@@ -32,6 +32,66 @@ test("LinearConstraint.normal", function(){
 	equal(cReverse.normal[1], 20, "Test y-coord of normal to horizontal ray (segment) moving right to left");
 });
 
+test("LinearConstraint.satisfy", function(){
+	
+	var i = 0
+		,v1 = new THWAP.Vertex([0,0,0])
+		,v2 = new THWAP.Vertex([20,0,0])
+		,v3 = new THWAP.Vertex([20,20,0])
+		,c = new THWAP.LinearConstraint(v1, v2)
+		,c2 = new THWAP.LinearConstraint(v2,v3);
+	
+	console.log(v1.cpos, v2.cpos, v3.cpos);
+	
+	for(i = 0; i < 10000; i++){
+		v1.update(20);
+		v2.update(20);
+		c.satisfy();
+	}
+	
+	same(v1.cpos, v1.ppos, "v1 previous and current position should be equal");
+	same(v2.cpos, v2.ppos, "v2 previous and current position should be equal");
+	
+	equal(v1.cpos[0], 0, "v1 x coordinate should not change");
+	equal(v2.cpos[0], 20, "v2 x coordinate should not change");
+	
+	console.log(v1.cpos, v2.cpos, v3.cpos);
+	
+	v1.cpos[0] += 1;
+	c.satisfy();
+	notEqual(v2.cpos[0], 20, "second vertex should be updated to maintain constraint");
+	
+	for(i = 0; i < 10000; i++){
+		v1.update(20);
+		v2.update(20);
+		c.satisfy();
+	}
+	
+	equal((~~(v1.cpos[0]*100))*0.01, 5.5, "first vertex shifted by 5.5")
+	equal((~~(v2.cpos[0]*100))*0.01, 25.5, "second vertex shifted by 5.5 == 25.5")
+
+	for(i = 0; i < 10000; i++){
+		v1.update(20);
+		v2.update(20);
+		c.satisfy();
+	}
+
+	console.log(v1.cpos, v2.cpos, v3.cpos);
+
+	same(v3.cpos, vec3.create([20,20,0]), "v3 should not have moved");
+
+	for(i = 0; i < 10000; i++){
+		v1.update(20);
+		v2.update(20);
+		v3.update(20);
+		c.satisfy();
+		c2.satisfy();
+	}
+
+	console.log(v1.cpos, v2.cpos, v3.cpos);
+
+})
+
 test("Box.(Body)moveTo", function(){
 	expect(6);
 	var b = new ZAP.Entities.Box(10, 5);
@@ -92,6 +152,21 @@ test('Box.(Body)rotate', function(){
 	ok( vectorEpsilonCheck( v2.cpos, [0,-100,0]), "Upper right corner should be above");
 	ok( vectorEpsilonCheck( v3.cpos, [50,-100,0]), "Lower right corner should be above and to the right");
 	ok( vectorEpsilonCheck( v4.cpos, [50,0,0]), "Lower left corner should be to the right");
+	
+});
+
+test('Box.(Body)addAcceleration', function(){
+	
+	var b = new ZAP.Entities.Box(100, 50)
+		,i = 0;
+	b.physicsObject.addAcceleration([0.01,0,0]);
+	
+	for(i = 0; i < 100000; i++){
+		b.physicsObject.update(20);
+	}
+	
+	b.debugDraw($('#testCvs')[0].getContext('2d'), [0,0]);
+	console.log(b.physicsObject);
 	
 });
 

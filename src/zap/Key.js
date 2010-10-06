@@ -1,8 +1,8 @@
 var KEY = (function(W){
 	
-	var down = [] // stores the "custom" events + original
+	var  down = [] // stores the "custom" events + original
 		,handler = [] // one handler callback to rule them all
-		,self = this;
+		,self = {};
 	
 	function onKeyDown(e){	
 		// webkit will repeat this event while held down

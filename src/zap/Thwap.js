@@ -7,35 +7,53 @@ function World(){
 	this.dim = [0,0,0];
 	this.vlist = []; // vertex list
 	this.clist = []; // constraint list
-	this.blist = []; // body list, only used for collisions?
+	this.blist = []; // body list, only used for collisions/orientations?
 }
 World.prototype.addVertex = function(v){
-	this.vlist.push(v);
+	if(this.vlist.indexOf(v) === -1){
+		this.vlist.push(v);
+	}
+	return this;
+}
+World.prototype.addConstraint = function(c){
+	this.clist.push(c);
+	this.addVertex(c.v1);
+	this.addVertex(c.v2);
+	//this.vlist.push(c.v1, c.v2);
+	return this;
 }
 World.prototype.addBody = function(b){
 	this.blist.push(b);
-	for(var i = 0; i < b.constraints.length; i++){
-		var c = b.constraints[i];
-		this.clist.push(c);
-		this.vlist.push(c.v1, c.v2);
+	
+	for(var i = 0; i < b.clist.length; i++){
+		this.addConstraint(b.clist[i]);
 	}
+	return this;
 }
 World.prototype.step = function(dt){
-	var v = this.vlist.length-1
-		c = this.clist.length-1;
+	var  v = this.vlist.length-1
+		,c = this.clist.length-1
+		,b = this.blist.length-1;
 	
 	// update verticies
-	while(v){
+	while(v >= 0){
 		this.vlist[v].update(dt);
 		v--;
 	}
 
 	// update constraints
-	while(c){
+	while(c >= 0){
 		this.clist[c].update(dt);
 		c--;
 	}
 
+	// update body orientations
+	while(b >= 0){
+		this.blist[b].computeOrientationMatrix();
+		b--;
+	}
+
+	return this;
 }
 //---------------------------------------------------------------------
 // ThwapVertex
@@ -48,7 +66,7 @@ function Vertex(position){
 	this.isFree = true;
 	this.collidable = true;
 	this.rad  = 8;
-	this.mass = 10;
+	this.imass = 1/1;
 	this.gfric = 0.1; // basically passive friction
 	this.cfric = 0.1; // collision friction
 }	
@@ -148,6 +166,14 @@ Vertex.prototype.getVelocity = function(dest){
 	vec3.subtract(this.cpos, this.ppos, dest);
 	return dest;
 }
+Vertex.prototype.getBoundingBox = function(){
+	var min = vec3.create()
+		,max = vec3.create()
+		,radius = vec3.create([this.rad, this.rad, 0]);
+	vec3.subtract(this.cpos, radius, min);
+	vec3.add(this.cpos, radius, max);
+	return {min: min, max: max};
+}
 Vertex.prototype.checkBounds = function(){
 	this.cpos[0] = Math.min(this.cpos[0] + this.rad, WORLD.dim[0] - this.rad);
 	this.cpos[1] = Math.min(this.cpos[1] + this.rad, WORLD.dim[1] - this.rad);
@@ -168,13 +194,17 @@ function LinearConstraint(v1, v2, restLen){
 	// restLength[min,max] if both are the same it is very rigid
 	if(restLen == undefined){
 		var diff = vec3.create();
-		vec3.subtract(v1.cpos, v2.cpos, diff);
+		vec3.subtract(v2.cpos, v1.cpos, diff);
 		var len = vec3.length(diff);
 		this.restLength = [len, len]; // calculated
 	} else {
 		this.restLength = restLen
 	}
 	
+	this.restLength2 = [ 
+		this.restLength[0]*this.restLength[0],
+		this.restLength[1]*this.restLength[1] ];
+	this.imass = v1.imass + v2.imass;
 	this.isStatic = false; // cannot move, ie static geometry (like the ground)
 	this.collidable = true;
 	// normal is assumed to be the "left" side of v2 - v1
@@ -187,6 +217,25 @@ function LinearConstraint(v1, v2, restLen){
 	}
 }
 LinearConstraint.prototype.satisfy = function(){
+	
+	if(this.imass < THWAP.EPSILON) { return this; }
+	
+	var  v1 = this.v1
+		,v2 = this.v2
+		,delta = vec3.create()
+		,delta2 = 0
+		,diff = 0;
+	
+	vec3.subtract(v2.cpos, v1.cpos, delta);
+	delta2 = vec3.dot(delta, delta);
+	// square root approximation
+	diff = this.restLength2[0] / (delta2 + this.restLength2[0]) - 0.5;
+	diff *= -2;
+	
+	vec3.scale(delta, diff/this.imass);
+	vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
+	vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
+	
 	return this;
 }
 LinearConstraint.prototype.computeNormal = function(){
@@ -214,6 +263,8 @@ function Body(){
 	this.solidity = 1; // how many times the constraints and vertices are updated per loop
 	this.orientation = mat4.create();
 	this.rotation = 0;
+	this.boundingPos = vec3.create();
+	this.boundingRad = 0;
 	//this.dirty = true; // let's optimize later
 }
 Body.prototype.computeOrientationMatrix = function(){
@@ -254,6 +305,7 @@ Body.prototype.moveTo = function(vec){
 	for(var i = 0; i < this.vlist.length; i++){
 		var v = this.vlist[i];
 		mat4.multiplyVec3(mat, v.cpos);
+		mat4.multiplyVec3(mat, v.ppos);
 	}
 }
 // transform all vertices clockwise by radians
@@ -277,7 +329,7 @@ Body.prototype.update = function(dt){
 		}
 	
 		for(; j < this.clist.length; j++){
-			this.clist[j].satisfy(dt);
+			this.clist[j].update(dt);
 		}
 	}
 }
@@ -286,12 +338,38 @@ Body.prototype.addAcceleration = function(vec){
 		vec3.add(this.vlist[i].acel, vec);
 	}
 }
-
+Body.prototype.computeBoundingSphere = function(){
+	if(this.vlist.length <= 0){
+		return this;
+	}
+	var minMax = this.vlist[0].getBoundingBox()
+		,min = minMax.min, max = minMax.max;
+	
+	for(var i = 1; i < this.vlist.length; i++){
+		var pMinMax = this.vlist[i].getBoundingBox()
+			pMin = pMinMax.min, pMax = pMinMax.max;
+		
+		if (pMin[0] < min[0]) min[0] = pMin[0];
+		if (pMin[1] < min[1]) min[1] = pMin[1];
+		if (pMin[2] < min[2]) min[2] = pMin[2];
+                                           
+		if (pMax[0] > max[0]) max[0] = pMax[0];
+		if (pMax[1] > max[1]) max[1] = pMax[1];
+		if (pMax[2] > max[2]) max[2] = pMax[2];
+	}
+	vec3.scale(vec3.add(max, min, vec3.create()), 0.5, this.boundingPos);
+	this.boundingRad = vec3.length(vec3.scale(vec3.subtract(max, min, vec3.create()), 0.5));
+	return this;
+}
+Body.prototype.collideWithBody = function(body){
+	
+}
 //---------------------------------------------------------------------
 // Export
 //---------------------------------------------------------------------
 window.THWAP = {
-	Vertex: Vertex
+	EPSILON: 0.001
+	,Vertex: Vertex
 	,LinearConstraint: LinearConstraint
 	,Body: Body
 	,World: World

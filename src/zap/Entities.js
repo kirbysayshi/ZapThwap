@@ -136,8 +136,9 @@ function Box(w, h, img, al, am){
 }
 Box.prototype = {
 	update: function(dt){
-		this.physicsObject
-			.update(dt);
+		// this should be handled by THWAP
+		//this.physicsObject
+		//	.update(dt);
 		
 		this.spriteObject
 			.updateAnimation(dt)
@@ -153,31 +154,30 @@ Box.prototype = {
 
 		ctx.save();
 
-		// draw constraints
 		ctx.beginPath();
-		ctx.moveTo(v1.cpos[0] + offset[0], v1.cpos[1] + offset[1]);
-		ctx.lineTo(v2.cpos[0] + offset[0], v2.cpos[1] + offset[1]);
-		ctx.lineTo(v3.cpos[0] + offset[0], v3.cpos[1] + offset[1]);
-		ctx.lineTo(v4.cpos[0] + offset[0], v4.cpos[1] + offset[1]);
-		ctx.lineTo(v1.cpos[0] + offset[0], v1.cpos[1] + offset[1]);
+		for(var i = 0; i < this.physicsObject.clist.length; i++){
+			var c = this.physicsObject.clist[i];
+			ctx.moveTo(c.v1.cpos[0] + offset[0], c.v1.cpos[1] + offset[1]);
+			ctx.lineTo(c.v2.cpos[0] + offset[0], c.v2.cpos[1] + offset[1]);
+		}
 		ctx.stroke();
 
 		// draw vertices
 		ctx.fillStyle = "#FF0000"; // red
 		ctx.beginPath();
-		ctx.arc(v1.cpos[0] + offset[0], v1.cpos[1] + offset[1], 1, 0, Math.PI*2, false);
+		ctx.arc(v1.cpos[0] + offset[0], v1.cpos[1] + offset[1], v1.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		ctx.fillStyle = "#CC66FF"; // purple
 		ctx.beginPath();
-		ctx.arc(v2.cpos[0] + offset[0], v2.cpos[1] + offset[1], 1, 0, Math.PI*2, false);
+		ctx.arc(v2.cpos[0] + offset[0], v2.cpos[1] + offset[1], v2.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		ctx.fillStyle = "#33FFFF"; // aquamarine
 		ctx.beginPath();
-		ctx.arc(v3.cpos[0] + offset[0], v3.cpos[1] + offset[1], 1, 0, Math.PI*2, false);
+		ctx.arc(v3.cpos[0] + offset[0], v3.cpos[1] + offset[1], v3.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		ctx.fillStyle = "#99CC33"; // green
 		ctx.beginPath();
-		ctx.arc(v4.cpos[0] + offset[0], v4.cpos[1] + offset[1], 1, 0, Math.PI*2, false);
+		ctx.arc(v4.cpos[0] + offset[0], v4.cpos[1] + offset[1], v4.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		
 		ctx.restore();
