@@ -180,6 +180,11 @@ Box.prototype = {
 		ctx.arc(v4.cpos[0] + offset[0], v4.cpos[1] + offset[1], v4.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		
+		var phys = this.physicsObject;
+		ctx.beginPath();
+		ctx.arc(phys.boundingPos[0] + offset[0], phys.boundingPos[1] + offset[1], phys.boundingRad, 0, Math.PI*2, false);
+		ctx.stroke();
+		
 		ctx.restore();
 	}
 }

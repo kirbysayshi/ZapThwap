@@ -9,12 +9,15 @@ var ANGRY = {};
 		,$cWorld = $("#cvsWorld")
 		,ctx = $cWorld[0].getContext('2d')
 		,box = new ZAP.Entities.Box(62, 64, 'src/zap/defaults/mmzmugs1sheet.gif')
-		,wall = new ZAP.Entities.Box(600, 20);
+		,wall = new ZAP.Entities.Box(600, 200);
 	
 	box.spriteObject.attachTo($dWorld[0]);
 	wall.spriteObject.attachTo($dWorld[0]);
 	
-	wall.physicsObject.moveTo([0,300,0]);
+	wall.physicsObject.moveTo([0,600,0]);
+	for(var i = 0; i < wall.physicsObject.vlist.length; i++){
+		wall.physicsObject.vlist[i].isFree = false;
+	}
 	
 	TWorld
 		.addBody(box.physicsObject)
@@ -22,8 +25,11 @@ var ANGRY = {};
 	
 	ZAP.CGLM.register(function priorityOne(dt){
 		KEY.dispatcher();
-		TWorld.step(dt);
-		box.update(dt);
+		TWorld.step(dt/4);
+		
+		box.update(dt)
+		box.physicsObject.addAcceleration([0,0.01,0]);
+		
 		wall.update(dt);
 	}, function priorityTwo(dt){
 		ctx.clearRect(0,0,2000,2000);
@@ -38,7 +44,7 @@ var ANGRY = {};
 		if(down[27].delta > 0){ ZAP.CGLM.stop(); }
 		
 		if(down[32].delta > 0){
-			
+			box.physicsObject.addAcceleration([0,-0.1,0]);
 		}
 		
 		if(down[87].delta > 0){ // W

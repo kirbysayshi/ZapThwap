@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>why won't this work</title>
+		<script src="../lib/jquery-1.4.2.min.js"></script>
+	</head>
+	<body>
+
+		<canvas id="cvsWorld" width="2000" height="600"></canvas>
+
+		<script type="text/javascript" src="../lib/glMatrix.js"></script>
+
+		<script type="text/javascript" src="Thwap.js"></script>
+		<script type="text/javascript" src="ZAP.js"></script>
+		<script type="text/javascript" src="Entities.js"></script>
+		<script type="text/javascript" src="Key.js"></script>
+	
+<script type="text/javascript" charset="utf-8">
+	function drawBody(ctx, body){
+		var  v1 = body.vlist[0]
+			,v2 = body.vlist[1]
+			,v3 = body.vlist[2]
+			,v4 = body.vlist[3];
+
+		ctx.save();
+
+		ctx.beginPath();
+		for(var i = 0; i < body.clist.length; i++){
+			var c = body.clist[i];
+			ctx.moveTo(c.v1.cpos[0], c.v1.cpos[1]);
+			ctx.lineTo(c.v2.cpos[0], c.v2.cpos[1]);
+		}
+		ctx.stroke();
+
+		// draw vertices
+		ctx.fillStyle = "#FF0000"; // red
+		ctx.beginPath();
+		ctx.arc(v1.cpos[0], v1.cpos[1], 3, 0, Math.PI*2, false);
+		ctx.fill();
+		ctx.fillStyle = "#CC66FF"; // purple
+		ctx.beginPath();
+		ctx.arc(v2.cpos[0], v2.cpos[1], 3, 0, Math.PI*2, false);
+		ctx.fill();
+		ctx.fillStyle = "#33FFFF"; // aquamarine
+		ctx.beginPath();
+		ctx.arc(v3.cpos[0], v3.cpos[1], 3, 0, Math.PI*2, false);
+		ctx.fill();
+		ctx.fillStyle = "#99CC33"; // green
+		ctx.beginPath();
+		ctx.arc(v4.cpos[0], v4.cpos[1], 3, 0, Math.PI*2, false);
+		ctx.fill();
+		
+		ctx.restore();
+	}
+	
+	var ctx = $("#cvsWorld")[0].getContext('2d')
+		,ref = 0 // timer ref
+		,b = new THWAP.Body()
+		,v1 = new THWAP.Vertex(vec3.create([0,0,0]))
+		,v2 = new THWAP.Vertex(vec3.create([100,0,0]))
+		,v3 = new THWAP.Vertex(vec3.create([100,50,0]))
+		,v4 = new THWAP.Vertex(vec3.create([0,50,0]))
+		,tc = new THWAP.LinearConstraint(v1,v2) // top
+		,rc = new THWAP.LinearConstraint(v2,v3) // right
+		,bc = new THWAP.LinearConstraint(v3,v4) // bottom
+		,lc = new THWAP.LinearConstraint(v4,v1) // left
+		,dc = new THWAP.LinearConstraint(v1,v3) // cross down
+		,uc = new THWAP.LinearConstraint(v4,v2); // cross up
+	dc.collidable = false; uc.collidable = false;
+	b.vlist.push(v1, v2, v3, v4);
+	b.clist.push(tc, rc, bc, lc, dc, uc);
+	b.regA = v1;
+	b.regB = v2;
+	b.moveTo([10,10,0]);
+	
+	ZAP.CGLM.register(function P1(dt){
+		KEY.dispatcher();
+		b.update(dt);
+		drawBody(ctx, b);
+	}, function P2(){});
+		
+	KEY.listen(function(down){
+
+		var transform = false;
+		
+		if(down[27].delta > 0){ ZAP.CGLM.stop(); }
+		
+		if(down[32].delta > 0){
+			
+		}
+		
+		if(down[87].delta > 0){ // W
+			b.addAcceleration([0,-0.001,0]);
+		}
+		
+		if(down[83].delta > 0){ // S
+			b.addAcceleration([0,0.001,0]);
+		}
+		
+		if(down[65].delta > 0){ // A
+			b.addAcceleration([-0.001,0,0]);
+		}
+		
+		if(down[68].delta > 0){ // D
+			b.addAcceleration([0.001,0,0]);
+		}
+		
+	});
+	
+	ZAP.CGLM.start();
+	
+</script>
+	</body>
+</html>

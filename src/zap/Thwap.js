@@ -37,7 +37,8 @@ World.prototype.addBody = function(b){
 World.prototype.step = function(dt){
 	var  v = this.vlist.length-1
 		,c = this.clist.length-1
-		,b = this.blist.length-1;
+		,b = this.blist.length-1
+		,o = this.blist.length;
 	
 	// update verticies
 	while(v >= 0){
@@ -47,7 +48,7 @@ World.prototype.step = function(dt){
 
 	// update constraints
 	while(c >= 0){
-		this.clist[c].update(dt);
+		this.clist[c].update(dt).computeNormal();
 		c--;
 	}
 
@@ -59,6 +60,22 @@ World.prototype.step = function(dt){
 		b--;
 	}
 
+	// collide everything
+	b = this.blist.length-1;
+	while(b >= 0){
+		for(var i = 0; i < o; i++){
+			this.blist[b].collideWithBody(this.blist[i]);
+		}
+		b--;
+	}
+	
+	// reset collisions
+	b = this.blist.length-1;
+	while(b >= 0){
+		this.blist[b].resetCollisionCaches();
+		b--;
+	}
+	
 	return this;
 }
 //---------------------------------------------------------------------
@@ -77,7 +94,9 @@ function Vertex(position){
 	this.cfric = 0.1; // collision friction
 }	
 Vertex.prototype.collideConstraint = function(c){
-	if(this.collidable === false || c.collidable === false) return;
+	if(this.collidable === false || c.collidable === false
+		|| this == c.v1 || this == c.v2
+		|| this.isFree === false) return;
 	
 	//---------------------------------------------------------------------
 	// detect collision	
@@ -99,22 +118,23 @@ Vertex.prototype.collideConstraint = function(c){
 	var sqArg = (this.rad*this.rad) - vec3.dot(e, e) + (a*a);
 	if(sqArg < 0){ return false; } // no intersection
 	var t = a - Math.sqrt( sqArg );
-	//if(t < 0){ return false; } // intersection is on other side of circle?
+	if(t < 0 || t > edgeLength) { return false; } // intersection point not within segment
 	
-	console.log("collision");
+	//console.log("collision");
 	
 	//---------------------------------------------------------------------
 	// handle collision
 	//---------------------------------------------------------------------
 	var collisionPoint = vec3.create()
-		,collisionDepth = this.rad - Math.sqrt(vec3.dot(e, e) - a*a)	
-		,edgeNormal = vec3.normalize(
-			vec3.create([ 
-				c.v1.cpos[1] - c.v2.cpos[1]
-				,c.v1.cpos[0] - c.v2.cpos[0]
-				,0 
-			])
-		)
+		,collisionDepth = this.rad - Math.sqrt(vec3.dot(e, e) - a*a)
+		,edgeNormal = c.normal
+		//,edgeNormal = vec3.normalize(
+		//	vec3.create([ 
+		//		c.v1.cpos[1] - c.v2.cpos[1]
+		//		,c.v1.cpos[0] - c.v2.cpos[0]
+		//		,0 
+		//	])
+		//)
 		,D = vec3.create()
 	
 	vec3.add(this.cpos, vec3.scale(edgeRay, t), collisionPoint);
@@ -138,7 +158,7 @@ Vertex.prototype.collideConstraint = function(c){
 	
 	return this;
 }
-Vertex.prototype.collideVertex = function(){
+Vertex.prototype.collideVertex = function(vert){
 	if(this.collidable === false) return;
 	
 	return this;
@@ -190,7 +210,9 @@ Vertex.prototype.checkBounds = function(){
 	this.cpos[2] = Math.max(this.cpos[2] - this.rad, this.rad);
 	return this;
 }
-
+Vertex.prototype.toString = function(){
+	return '[Object Vertex] cpos: ' + this.cpos;
+}
 //---------------------------------------------------------------------
 // ThwapConstraint
 //---------------------------------------------------------------------
@@ -199,17 +221,14 @@ function LinearConstraint(v1, v2, restLen){
 	this.v2 = v2;
 	// restLength[min,max] if both are the same it is very rigid
 	if(restLen == undefined){
-		var diff = vec3.create();
-		vec3.subtract(v2.cpos, v1.cpos, diff);
-		var len = vec3.length(diff);
-		this.restLength = [len, len]; // calculated
+		var diff = vec3.subtract(v2.cpos, v1.cpos, vec3.create())
+			,len = vec3.length(diff);
+		this.restLength = len;//[len, len]; // calculated
 	} else {
 		this.restLength = restLen
 	}
 	
-	this.restLength2 = [ 
-		this.restLength[0]*this.restLength[0],
-		this.restLength[1]*this.restLength[1] ];
+	this.restLength2 = this.restLength*this.restLength;
 	this.imass = v1.imass + v2.imass;
 	this.isStatic = false; // cannot move, ie static geometry (like the ground)
 	this.collidable = true;
@@ -235,7 +254,7 @@ LinearConstraint.prototype.satisfy = function(){
 	vec3.subtract(v2.cpos, v1.cpos, delta);
 	delta2 = vec3.dot(delta, delta);
 	// square root approximation
-	diff = this.restLength2[0] / (delta2 + this.restLength2[0]) - 0.5;
+	diff = this.restLength2 / (delta2 + this.restLength2) - 0.5;
 	diff *= -2;
 	
 	vec3.scale(delta, diff/this.imass);
@@ -249,14 +268,17 @@ LinearConstraint.prototype.computeNormal = function(){
 	
 	var diff = vec3.create();
 	vec3.subtract(this.v2.cpos, this.v1.cpos, diff);
-	this.normal[0] = -diff[1];
-	this.normal[1] = -diff[0]; // I think this needs to be negated also
+	this.normal[0] = diff[1];
+	this.normal[1] = -diff[0];
 	this.normal[2] = 0;
+	vec3.normalize(this.normal);
 	return this;
 }
 LinearConstraint.prototype.update = function(dt){
 	this.satisfy()
 		.computeNormal();
+	
+	return this;
 }
 //---------------------------------------------------------------------
 // ThwapBody: collection of constraints and vertices, with orientation
@@ -272,6 +294,9 @@ function Body(){
 	this.boundingPos = vec3.create();
 	this.boundingRad = 0;
 	//this.dirty = true; // let's optimize later
+	
+	this.hasCollidedVsWith = []; // reset after each step
+	this.hasCollidedCsWith = [];
 }
 Body.prototype.computeOrientationMatrix = function(){
 	//if(this.dirty === false) return this.orientation;
@@ -375,7 +400,61 @@ Body.prototype.computeBoundingSphere = function(){
 }
 Body.prototype.collideWithBody = function(body){
 	
+	if(body == this){ return false; }
+	
+	var v = c = bv = bc = 0
+		,vl = this.vlist.length
+		,cl = this.clist.length
+		,bvl = body.vlist.length
+		,bcl = body.clist.length;
+
+	// collide all vertices - vertices ONCE
+	if(this.hasCollidedVsWith.indexOf(body) === -1){
+		this.hasCollidedVsWith.push(body);
+		
+		for(v = 0; v < vl; v++){
+			for(bv = 0; bv < bvl; bv++){
+				this.vlist[v].collideVertex( body.vlist[bv] );
+			}
+		}
+	}
+	
+	// collide all this constraints - body vertices
+	if(this.hasCollidedCsWith.indexOf(body) === -1){
+		this.hasCollidedCsWith.push(body);
+		
+		for(c = 0; c < cl; c++){
+			for(bv = 0; bv < bvl; bv++){
+				body.vlist[bv].collideConstraint( this.clist[c] );
+			}
+		}
+	}
+
+	// collide all body constraints - this vertices
+	if(body.hasCollidedCsWith.indexOf(this) === -1){
+		body.hasCollidedCsWith.push(this);
+		
+		for(bc = 0; bc < bcl; bc++){
+			for(v = 0; v < vl; v++){
+				this.vlist[v].collideConstraint( body.clist[bc] );
+			}
+		}
+	}
+	return this;
 }
+Body.prototype.resetCollisionCaches = function(){
+	this.hasCollidedVsWith.length = 0;
+	this.hasCollidedCsWith.length = 0;
+	return this;
+}
+function SingleVertexBody(){
+	Body.call(this);
+	var v = new Vertex([0,0,0]);
+	this.vlist.push(v);
+}
+SingleVertexBody.prototype = new Body();
+SingleVertexBody.constructor = SingleVertexBody;
+
 //---------------------------------------------------------------------
 // Export
 //---------------------------------------------------------------------
@@ -384,6 +463,7 @@ window.THWAP = {
 	,Vertex: Vertex
 	,LinearConstraint: LinearConstraint
 	,Body: Body
+	,SingleVertexBody: SingleVertexBody
 	,World: World
 };
 })();
