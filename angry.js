@@ -14,24 +14,39 @@ var ANGRY = {};
 	box.spriteObject.attachTo($dWorld[0]);
 	wall.spriteObject.attachTo($dWorld[0]);
 	
-	wall.physicsObject.moveTo([0,600,0]);
+	wall.physicsObject.moveTo([0,400,0]);
 	for(var i = 0; i < wall.physicsObject.vlist.length; i++){
 		wall.physicsObject.vlist[i].isFree = false;
+		//wall.physicsObject.vlist[i].isCollidable = false;
 	}
+	for(var c = 0; c < wall.physicsObject.clist.length; c++){
+		wall.physicsObject.clist[c].isFree = false;
+	}
+	
+	box.physicsObject
+		.moveTo([20,20,0])
+		.setPassiveFriction(0.001)
+		.setCollisionFriction(0.5);
 	
 	TWorld
 		.addBody(box.physicsObject)
 		.addBody(wall.physicsObject);
 	
+	console.log(box.physicsObject.clist.length);
+	console.log(box.physicsObject.vlist.length);
+	
+	ZAP.CGLM.setFPS(100);
+	
 	ZAP.CGLM.register(function priorityOne(dt){
+		dt *= 0.001; // dt comes in ms, we need seconds
 		KEY.dispatcher();
-		TWorld.step(dt/4);
+		TWorld.step(dt);
+		box.physicsObject.addAcceleration([0,1000,0]);
 		
 		box.update(dt)
-		box.physicsObject.addAcceleration([0,0.01,0]);
-		
 		wall.update(dt);
 	}, function priorityTwo(dt){
+		dt *= 0.001;
 		ctx.clearRect(0,0,2000,2000);
 		box.debugDraw(ctx, [0,0,0]);
 		wall.debugDraw(ctx, [0,0,0]);
@@ -47,20 +62,20 @@ var ANGRY = {};
 			box.physicsObject.addAcceleration([0,-0.1,0]);
 		}
 		
-		if(down[87].delta > 0){ // W
-			box.physicsObject.addAcceleration([0,-0.001,0]);
+		if(down[87].delta > 0 && down[87].delta < 100){ // W
+			box.physicsObject.addAcceleration([0,-10000,0]);
 		}
 		
 		if(down[83].delta > 0){ // S
-			box.physicsObject.addAcceleration([0,0.001,0]);
+			box.physicsObject.addAcceleration([0,1000,0]);
 		}
 		
 		if(down[65].delta > 0){ // A
-			box.physicsObject.addAcceleration([-0.001,0,0]);
+			box.physicsObject.addAcceleration([-1000,0,0]);
 		}
 		
 		if(down[68].delta > 0){ // D
-			box.physicsObject.addAcceleration([0.001,0,0]);
+			box.physicsObject.addAcceleration([1000,0,0]);
 		}
 		
 	});

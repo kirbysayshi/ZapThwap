@@ -48,7 +48,7 @@ World.prototype.step = function(dt){
 
 	// update constraints
 	while(c >= 0){
-		this.clist[c].update(dt).computeNormal();
+		this.clist[c].update(dt);
 		c--;
 	}
 
@@ -87,16 +87,17 @@ function Vertex(position){
 	this.acel = vec3.create([0,0,0]);
 	this.grav = vec3.create([0,0,0]); 
 	this.isFree = true;
-	this.collidable = true;
+	this.isCollidable = true;
 	this.rad  = 8;
 	this.imass = 1/1;
 	this.gfric = 0.1; // basically passive friction
 	this.cfric = 0.1; // collision friction
 }	
 Vertex.prototype.collideConstraint = function(c){
-	if(this.collidable === false || c.collidable === false
+	if(this.isCollidable === false || c.isCollidable === false
 		|| this == c.v1 || this == c.v2
-		|| this.isFree === false) return;
+		//|| this.isFree === false
+		) return;
 	
 	//---------------------------------------------------------------------
 	// detect collision	
@@ -120,7 +121,6 @@ Vertex.prototype.collideConstraint = function(c){
 	var t = a - Math.sqrt( sqArg );
 	if(t < 0 || t > edgeLength) { return false; } // intersection point not within segment
 	
-	//console.log("collision");
 	
 	//---------------------------------------------------------------------
 	// handle collision
@@ -128,21 +128,11 @@ Vertex.prototype.collideConstraint = function(c){
 	var collisionPoint = vec3.create()
 		,collisionDepth = this.rad - Math.sqrt(vec3.dot(e, e) - a*a)
 		,edgeNormal = c.normal
-		//,edgeNormal = vec3.normalize(
-		//	vec3.create([ 
-		//		c.v1.cpos[1] - c.v2.cpos[1]
-		//		,c.v1.cpos[0] - c.v2.cpos[0]
-		//		,0 
-		//	])
-		//)
 		,D = vec3.create()
 	
 	vec3.add(this.cpos, vec3.scale(edgeRay, t), collisionPoint);
 	vec3.subtract(this.cpos, collisionPoint, D);
 	var d2 = vec3.dot(D, D);
-	
-	// move vertex from plane
-	vec3.add(this.cpos, vec3.scale(vec3.create(edgeNormal), collisionDepth), this.cpos);
 	
 	// calculate velocity, velocity along normal, and collision plane
 	var velocity = this.getVelocity()
@@ -151,15 +141,76 @@ Vertex.prototype.collideConstraint = function(c){
 	vec3.scale(edgeNormal, vec3.dot(velocity, edgeNormal), velocityNormal);
 	vec3.subtract(velocity, velocityNormal, velocityCollisionPlane);
 	
-	// apply more friction when colliding
-	vec3.subtract(this.ppos, vec3.scale(velocityCollisionPlane, -this.cfric), this.ppos);
+	if(this.isFree === true){
+		// move vertex from plane
+		vec3.add(this.cpos, vec3.scale(vec3.create(edgeNormal), collisionDepth), this.cpos);
 	
-	// apply collision to each vertex, if they are not free?
+		// apply more friction when colliding
+		vec3.subtract(this.ppos, vec3.scale(velocityCollisionPlane, -this.cfric), this.ppos);
+	}
+	
+	// apply collision to each vertex, if they are free
+	if(c.isFree === true){
+		// move vertex from plane
+		vec3.add(c.v1.cpos, vec3.scale(vec3.negate(vec3.create(edgeNormal)), collisionDepth), c.v1.cpos);
+		vec3.add(c.v2.cpos, vec3.scale(vec3.negate(vec3.create(edgeNormal)), collisionDepth), c.v2.cpos);
+
+		// apply more friction when colliding
+		vec3.negate(vec3.scale(velocityCollisionPlane, -this.cfric));
+		vec3.subtract(c.v1.ppos, velocityCollisionPlane, c.v1.ppos);
+		vec3.subtract(c.v2.ppos, velocityCollisionPlane, c.v2.ppos);
+	}
 	
 	return this;
 }
 Vertex.prototype.collideVertex = function(vert){
-	if(this.collidable === false) return;
+	if(this.isCollidable === false || vert.isCollidable === false) return;
+	
+	// TODO: make this make constraint collisions not explode?
+	
+	var diff = vec3.subtract(this.cpos, vert.cpos, vec3.create())
+		,comboRad = this.rad + vert.rad
+		,diff2 = vec3.dot(diff, diff)
+		,comboRad2 = comboRad*comboRad;
+	
+	// early out, too far apart
+	if(diff2 > comboRad2){
+		return false;
+	}
+	
+	var diffLength = Math.sqrt(diff2)
+		,depth = comboRad - diffLength
+		,comboInvMass = this.imass + vert.imass;
+	
+	// normalize diff
+	diff[0] /= diffLength;
+	diff[1] /= diffLength;
+	diff[2] /= diffLength;
+	
+	// velocity diff, velocity along normal, and velocity along collision plane
+	var  thisVel = vec3.subtract(this.cpos, this.ppos, vec3.create())
+		,vertVel = vec3.subtract(vert.cpos, vert.ppos, vec3.create())
+		,velDiff = vec3.subtract(thisVel, vertVel, vec3.create())
+		,velNorm = vec3.scale(diff, vec3.dot(velDiff, diff), vec3.create())
+		,velColl = vec3.subtract(velDiff, velNorm, vec3.create());
+	
+	// friction / damping
+	velColl[0] /= comboInvMass;
+	velColl[1] /= comboInvMass;
+	velColl[2] /= comboInvMass;
+	
+	if(this.isFree === true) {
+		// move particle from plane
+		vec3.add(this.cpos, vec3.scale(diff, (depth*this.imass), vec3.create()));
+		// friction / damping
+		vec3.subtract(this.cpos, vec3.scale(velColl, (this.cfric*this.imass), vec3.create()));
+	}
+	if(vert.isFree === true) {
+		// move particle from plane
+		vec3.subtract(vert.cpos, vec3.scale(diff, (depth*vert.imass), vec3.create()));
+		// friction / damping
+		vec3.add(vert.cpos, vec3.scale(velColl, (vert.cfric*vert.imass), vec3.create()));
+	}
 	
 	return this;
 }
@@ -193,7 +244,7 @@ Vertex.prototype.getVelocity = function(dest){
 	return dest;
 }
 Vertex.prototype.getBoundingBox = function(){
-	var min = vec3.create()
+	var  min = vec3.create()
 		,max = vec3.create()
 		,radius = vec3.create([this.rad, this.rad, 0]);
 	vec3.subtract(this.cpos, radius, min);
@@ -216,7 +267,7 @@ Vertex.prototype.toString = function(){
 //---------------------------------------------------------------------
 // ThwapConstraint
 //---------------------------------------------------------------------
-function LinearConstraint(v1, v2, restLen){
+function LinearConstraint(v1, v2, iterations, restLen){
 	this.v1 = v1;
 	this.v2 = v2;
 	// restLength[min,max] if both are the same it is very rigid
@@ -228,43 +279,44 @@ function LinearConstraint(v1, v2, restLen){
 		this.restLength = restLen
 	}
 	
+	this.iterations = iterations || 5
 	this.restLength2 = this.restLength*this.restLength;
 	this.imass = v1.imass + v2.imass;
-	this.isStatic = false; // cannot move, ie static geometry (like the ground)
-	this.collidable = true;
+	this.isFree = false; // cannot move, ie static geometry (like the ground)
+	this.isCollidable = true;
 	// normal is assumed to be the "left" side of v2 - v1
 	this.normal = vec3.create([0,0,0]);
 	this.computeNormal(); // calculate normal here
 	
 	if(!v1.isFree && !v2.isFree){
 		// this flag tells us we don't need to recalculate the normal
-		this.isStatic = true;
+		this.isFree = true;
 	}
 }
 LinearConstraint.prototype.satisfy = function(){
-	
 	if(this.imass < THWAP.EPSILON) { return this; }
 	
-	var  v1 = this.v1
-		,v2 = this.v2
-		,delta = vec3.create()
-		,delta2 = 0
-		,diff = 0;
+	for(var i = 0; i < this.iterations; i++){
+		var  v1 = this.v1
+			,v2 = this.v2
+			,delta = vec3.create()
+			,delta2 = 0
+			,diff = 0;
 	
-	vec3.subtract(v2.cpos, v1.cpos, delta);
-	delta2 = vec3.dot(delta, delta);
-	// square root approximation
-	diff = this.restLength2 / (delta2 + this.restLength2) - 0.5;
-	diff *= -2;
+		vec3.subtract(v2.cpos, v1.cpos, delta);
+		delta2 = vec3.dot(delta, delta);
+		// square root approximation
+		diff = this.restLength2 / (delta2 + this.restLength2) - 0.5;
+		diff *= -2;
 	
-	vec3.scale(delta, diff/this.imass);
-	vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
-	vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
-	
+		vec3.scale(delta, diff/this.imass);
+		vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
+		vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
+	}
 	return this;
 }
 LinearConstraint.prototype.computeNormal = function(){
-	if(this.isStatic === true) { return this; }
+	if(this.isFree === true) { return this; }
 	
 	var diff = vec3.create();
 	vec3.subtract(this.v2.cpos, this.v1.cpos, diff);
@@ -300,7 +352,8 @@ function Body(){
 }
 Body.prototype.computeOrientationMatrix = function(){
 	//if(this.dirty === false) return this.orientation;
-	var regRay = vec3.create()
+	var  regRay = vec3.create()
+		,offset = vec3.create()
 		,oriRay = vec3.create([1,0,0]) // unit vector!
 		,ori4 = mat4.identity(this.orientation);
 		
@@ -318,11 +371,20 @@ Body.prototype.computeOrientationMatrix = function(){
 	// if z value is positive, rotation should be positive
 	if(regRay[1] > 0 && this.rotation < 0) { this.rotation *= -1; }
 
-	// move matrix to proper position
-	mat4.translate(ori4, this.regA.cpos);
-	// apply rotation to matrix...
+	// scale regRay to radius, create diagonal offset using perpendicular
+	vec3.scale(regRay, this.regA.rad);
+	offset[0] = -(regRay[0] - regRay[1]);
+	offset[1] = -(regRay[1] + regRay[0]);
+	offset[2] =   regRay[2] + regRay[2]  ;
+
+	// move matrix to proper position, assuming that edges 
+	// of body match outside edge of vertex
+	mat4.translate(ori4, vec3.add(offset, this.regA.cpos));
+	
+	// finally apply rotation to matrix...
 	mat4.rotateZ(ori4, this.rotation);
 
+	// set as new orientation
 	mat4.set(this.orientation, ori4);
 
 	//this.dirty = false;
@@ -447,6 +509,31 @@ Body.prototype.resetCollisionCaches = function(){
 	this.hasCollidedCsWith.length = 0;
 	return this;
 }
+Body.prototype.setPassiveFriction = function(fric){
+	for(var i = 0; i < this.vlist.length; i++){
+		var v = this.vlist[i];
+		v.gfric = fric;
+	}
+	return this;
+}
+Body.prototype.setCollisionFriction = function(fric){
+	for(var i = 0; i < this.vlist.length; i++){
+		var v = this.vlist[i];
+		v.cfric = fric;
+	}
+	return this;
+}
+Body.prototype.createConstraints = function(iterations){
+	for(var i = 0; i < this.vlist.length; i++){
+		for(var j = i+1; j < this.vlist.length; j++){
+			this.clist.push( 
+				new THWAP.LinearConstraint(this.vlist[i], this.vlist[j], iterations) 
+			);
+		}
+	}
+}
+
+
 function SingleVertexBody(){
 	Body.call(this);
 	var v = new Vertex([0,0,0]);

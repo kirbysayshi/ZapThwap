@@ -67,7 +67,7 @@
 		,lc = new THWAP.LinearConstraint(v4,v1) // left
 		,dc = new THWAP.LinearConstraint(v1,v3) // cross down
 		,uc = new THWAP.LinearConstraint(v4,v2); // cross up
-	dc.collidable = false; uc.collidable = false;
+	dc.isCollidable = false; uc.isCollidable = false;
 	b.vlist.push(v1, v2, v3, v4);
 	b.clist.push(tc, rc, bc, lc, dc, uc);
 	b.regA = v1;

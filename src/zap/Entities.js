@@ -118,32 +118,58 @@ function Box(w, h, img, al, am){
 			]
 		]);
 	this.physicsObject = new THWAP.Body();
-	var  v1 = new THWAP.Vertex(vec3.create([0,0,0]))
-		,v2 = new THWAP.Vertex(vec3.create([w,0,0]))
-		,v3 = new THWAP.Vertex(vec3.create([w,h,0]))
-		,v4 = new THWAP.Vertex(vec3.create([0,h,0]))
-		,tc = new THWAP.LinearConstraint(v1,v2) // top
-		,rc = new THWAP.LinearConstraint(v2,v3) // right
-		,bc = new THWAP.LinearConstraint(v3,v4) // bottom
-		,lc = new THWAP.LinearConstraint(v4,v1) // left
-		,dc = new THWAP.LinearConstraint(v1,v3) // cross down
-		,uc = new THWAP.LinearConstraint(v4,v2); // cross up
-	dc.collidable = false; uc.collidable = false;
-	this.physicsObject.vlist.push(v1, v2, v3, v4);
-	this.physicsObject.clist.push(tc, rc, bc, lc, dc, uc);
-	this.physicsObject.regA = v1;
-	this.physicsObject.regB = v2;
+	
+	var  fillers = []
+		,fRad = Math.min(w, h) / 2
+		,cornerRad = fRad / 8
+		,widerThanTall = w > h ? true : false
+		,widthFillerCount = ~~(w / fRad)
+		,heightFillerCount = ~~(h / fRad);
+	
+	if(widerThanTall === true){
+		for(var i = 1; i < widthFillerCount; i++){
+			fillers.push( vec3.create([i*fRad, fRad, 0]) )
+		}
+	} else {
+		for(var i = 1; i < heightFillerCount; i++){
+			fillers.push( vec3.create([fRad, i*fRad, 0]) )
+		}
+	}
+
+	var corners = [
+		  vec3.create([cornerRad, cornerRad, 0])
+		, vec3.create([w-cornerRad, cornerRad, 0])
+		, vec3.create([w-cornerRad, h-cornerRad, 0])
+		, vec3.create([cornerRad,  h-cornerRad, 0])
+	];
+	
+	for(var c = 0; c < corners.length; c++){
+		var q = new THWAP.Vertex(corners[c]);
+		q.rad = cornerRad;
+		this.physicsObject.vlist.push(q);
+	}
+	
+	for(var v = 0; v < fillers.length; v++){
+		var p = new THWAP.Vertex(fillers[v]);
+		p.rad = fRad;
+		this.physicsObject.vlist.push(p);
+	}
+
+	this.physicsObject.createConstraints(5);
+	
+	// this exploits the idea that corners were added first
+	this.physicsObject.regA = this.physicsObject.vlist[0];
+	this.physicsObject.regB = this.physicsObject.vlist[1];
+
 }
 Box.prototype = {
 	update: function(dt){
-		// this should be handled by THWAP
-		//this.physicsObject
-		//	.update(dt);
+		// this only handles the sprite, physics are handled by THWAP.step()
 		
 		this.spriteObject
 			.updateAnimation(dt)
-			.setOrientationMatrix(
-				this.physicsObject.orientation)
+			.setOrientationMatrix
+				(this.physicsObject.orientation)
 			.draw();
 	}
 	,debugDraw: function(ctx, offset){
@@ -153,6 +179,7 @@ Box.prototype = {
 			,v4 = this.physicsObject.vlist[3];
 
 		ctx.save();
+		ctx.strokeStyle = 'rgba(142,142,142,0.5)';
 
 		ctx.beginPath();
 		for(var i = 0; i < this.physicsObject.clist.length; i++){
@@ -179,6 +206,15 @@ Box.prototype = {
 		ctx.beginPath();
 		ctx.arc(v4.cpos[0] + offset[0], v4.cpos[1] + offset[1], v4.rad, 0, Math.PI*2, false);
 		ctx.fill();
+		
+		
+		for(var j = 0; j < this.physicsObject.vlist.length; j++){
+			ctx.beginPath();
+			var v = this.physicsObject.vlist[j];
+			ctx.arc(v.cpos[0] + offset[0], v.cpos[1] + offset[1], v.rad, 0, Math.PI*2, false);
+			ctx.stroke();
+		}
+		
 		
 		var phys = this.physicsObject;
 		ctx.beginPath();
