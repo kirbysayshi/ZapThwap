@@ -540,7 +540,6 @@ Body.prototype.createConstraints = function(iterations){
 	}
 }
 
-
 function SingleVertexBody(){
 	Body.call(this);
 	var v = new Vertex([0,0,0]);

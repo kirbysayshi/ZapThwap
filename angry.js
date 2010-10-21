@@ -17,23 +17,32 @@ var ANGRY = {};
 	wall.spriteObject.attachTo($dWorld[0]);
 	
 	wall.physicsObject.moveTo([0,400,0]);
-	for(var i = 0; i < wall.physicsObject.vlist.length; i++){
-		wall.physicsObject.vlist[i].isFree = false;
-		wall.physicsObject.vlist[i].isCollidable = false;
-	}
-	for(var c = 0; c < wall.physicsObject.clist.length; c++){
-		wall.physicsObject.clist[c].isFree = false;
-	}
+	
+	wall.physicsObject.vlist.forEach(function(v){
+		v.isFree = false;
+		//v.isCollidable = false;
+	});
+	
+	wall.physicsObject.clist.forEach(function(c){
+		c.isFree = false;
+		c.isCollidable = false;
+	});
 	
 	box.physicsObject
 		.moveTo([80,340,0])
 		.setPassiveFriction(0.001)
-		.setCollisionFriction(0.5);
+		.setCollisionFriction(0.5)
+		.clist.forEach(function(c){
+			c.isCollidable = false;
+		});
 	
 	box2.physicsObject
 		.moveTo([81,275,0])
 		.setPassiveFriction(0.001)
-		.setCollisionFriction(0.5);
+		.setCollisionFriction(0.5)
+		.clist.forEach(function(c){
+			c.isCollidable = false;
+		});
 	
 	TWorld
 		.addBody(box.physicsObject)
