@@ -89,7 +89,7 @@ DOMSprite.prototype.draw = function(){
 	
 	// set orientation
 	this.elStyle.webkitTransform = 
-		'matrix3d(' + this.orientation.map(function(e){
+		'matrix3d(' + this.orientation.map(function zeroClampTMatrix(e){
 			if( e < ZAP.EPSILON && e > -ZAP.EPSILON) e = 0;
 			return e;
 		}).join(', ') + ')';
@@ -213,8 +213,16 @@ Box.prototype = {
 			var v = this.physicsObject.vlist[j];
 			ctx.arc(v.cpos[0] + offset[0], v.cpos[1] + offset[1], v.rad, 0, Math.PI*2, false);
 			ctx.stroke();
+			
+			// draw vertex bounding box
+			//var mm = v.getBoundingBox();
+			//ctx.strokeRect(
+			//	 mm.min[0] + offset[0]
+			//	,mm.min[1] + offset[1]
+			//	,2*(mm.max[0]-v.cpos[0])
+			//	,2*(mm.max[1]-v.cpos[1])
+			//);
 		}
-		
 		
 		var phys = this.physicsObject;
 		ctx.beginPath();

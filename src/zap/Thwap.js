@@ -8,6 +8,7 @@ function World(){
 	this.vlist = []; // vertex list
 	this.clist = []; // constraint list
 	this.blist = []; // body list, only used for collisions/orientations?
+	this.lastdt = 0.016;
 }
 World.prototype.addVertex = function(v){
 	if(this.vlist.indexOf(v) === -1){
@@ -42,7 +43,7 @@ World.prototype.step = function(dt){
 	
 	// update verticies
 	while(v >= 0){
-		this.vlist[v].update(dt);
+		this.vlist[v].update(dt, this.lastdt);
 		v--;
 	}
 
@@ -76,6 +77,8 @@ World.prototype.step = function(dt){
 		b--;
 	}
 	
+	this.lastdt = dt;
+	
 	return this;
 }
 //---------------------------------------------------------------------
@@ -102,12 +105,11 @@ Vertex.prototype.collideConstraint = function(c){
 	//---------------------------------------------------------------------
 	// detect collision	
 	//---------------------------------------------------------------------	
-	var edgeRay = vec3.create();
-	vec3.subtract(c.v2.cpos, c.v1.cpos, edgeRay);
+	var edgeRay = vec3.subtract(c.v2.cpos, c.v1.cpos, vec3.create());
 	var edgeLength = vec3.length(edgeRay);
 	
 	// normalize edgeRay
-	vec3.scale(edgeRay, 1/edgeLength, edgeRay);
+	vec3.scale(edgeRay, 1/edgeLength);
 	
 	// e == segment from vertex to start point of ray (edge), or v1
 	// a == length of projection of e onto the edgeRay
@@ -214,7 +216,7 @@ Vertex.prototype.collideVertex = function(vert){
 	
 	return this;
 }
-Vertex.prototype.update = function(dt){	
+Vertex.prototype.update = function(dt, ldt){	
 	if(this.isFree === false) return this;
 		
 	var s = this,
@@ -226,7 +228,7 @@ Vertex.prototype.update = function(dt){
 
 	// calculate current velocity (vel is == ) 
 	vec3.subtract(s.cpos, s.ppos, vel)
-	vec3.add( vel, vec3.scale(s.acel, dt*dt) );
+	vec3.add( vec3.scale(vel, dt / ldt), vec3.scale(s.acel, dt*dt) );
 	
 	// add new vel to current position
 	vec3.add( s.cpos, vel );
@@ -442,11 +444,12 @@ Body.prototype.computeBoundingSphere = function(){
 		return this;
 	}
 	var minMax = this.vlist[0].getBoundingBox()
-		,min = minMax.min, max = minMax.max;
+		,min = [ Number.MAX_VALUE,  Number.MAX_VALUE,  Number.MAX_VALUE]
+		,max = [-Number.MIN_VALUE, -Number.MIN_VALUE, -Number.MIN_VALUE];
 	
-	for(var i = 1; i < this.vlist.length; i++){
-		var pMinMax = this.vlist[i].getBoundingBox()
-			pMin = pMinMax.min, pMax = pMinMax.max;
+	for(var i = 0; i < this.vlist.length; i++){
+		var  pMinMax = this.vlist[i].getBoundingBox()
+			,pMin = pMinMax.min, pMax = pMinMax.max;
 		
 		if (pMin[0] < min[0]) min[0] = pMin[0];
 		if (pMin[1] < min[1]) min[1] = pMin[1];
@@ -456,8 +459,12 @@ Body.prototype.computeBoundingSphere = function(){
 		if (pMax[1] > max[1]) max[1] = pMax[1];
 		if (pMax[2] > max[2]) max[2] = pMax[2];
 	}
+	// determine midpoint of vector between min and max
 	vec3.scale(vec3.add(max, min, vec3.create()), 0.5, this.boundingPos);
-	this.boundingRad = vec3.length(vec3.scale(vec3.subtract(max, min, vec3.create()), 0.5));
+	
+	this.boundingRad = vec3.length(
+		vec3.scale(vec3.subtract(max, min, vec3.create()), 0.5)
+	);
 	return this;
 }
 Body.prototype.collideWithBody = function(body){
