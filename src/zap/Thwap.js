@@ -4,7 +4,7 @@
 // ThwapWorld
 //---------------------------------------------------------------------
 function World(){
-	this.dim = [0,0,0];
+	//this.dim = [0,0,0];
 	this.vlist = []; // vertex list
 	this.clist = []; // constraint list
 	this.blist = []; // body list, only used for collisions/orientations?
@@ -33,6 +33,12 @@ World.prototype.addBody = function(b){
 	for(var i = 0; i < b.clist.length; i++){
 		this.addConstraint(b.clist[i]);
 	}
+	
+	// special single vertex case
+	if(b.clist.length == 0){
+		this.addVertex(b.vlist[0]);
+	}
+	
 	return this;
 }
 World.prototype.step = function(dt){
@@ -82,7 +88,7 @@ World.prototype.step = function(dt){
 	return this;
 }
 //---------------------------------------------------------------------
-// ThwapVertex
+// Vertex
 //---------------------------------------------------------------------
 function Vertex(position){
 	this.cpos = vec3.create(position || [0,0,0]);
@@ -185,9 +191,11 @@ Vertex.prototype.collideVertex = function(vert){
 		,comboInvMass = this.imass + vert.imass;
 	
 	// normalize diff
-	diff[0] /= diffLength;
-	diff[1] /= diffLength;
-	diff[2] /= diffLength;
+	if(diffLength !== 0){ // verticies on top of each other
+		diff[0] /= diffLength;
+		diff[1] /= diffLength;
+		diff[2] /= diffLength;
+	}
 	
 	// velocity diff, velocity along normal, and velocity along collision plane
 	var  thisVel = vec3.subtract(this.cpos, this.ppos, vec3.create())
@@ -263,11 +271,14 @@ Vertex.prototype.checkBounds = function(){
 	this.cpos[2] = Math.max(this.cpos[2] - this.rad, this.rad);
 	return this;
 }
+Vertex.prototype.debugDraw = function(ctx){
+	
+}
 Vertex.prototype.toString = function(){
 	return '[Object Vertex] cpos: ' + this.cpos;
 }
 //---------------------------------------------------------------------
-// ThwapConstraint
+// Constraint
 //---------------------------------------------------------------------
 function LinearConstraint(v1, v2, iterations, restLen){
 	this.v1 = v1;
@@ -335,7 +346,7 @@ LinearConstraint.prototype.update = function(dt){
 	return this;
 }
 //---------------------------------------------------------------------
-// ThwapBody: collection of constraints and vertices, with orientation
+// Body: collection of constraints and vertices, with orientation
 //---------------------------------------------------------------------
 function Body(){
 	this.clist = [];
@@ -343,7 +354,7 @@ function Body(){
 	this.regA = {};
 	this.regB = {};
 	this.solidity = 1; // how many times the constraints and vertices are updated per loop
-	this.orientation = mat4.create();
+	this.orientation = mat4.identity(mat4.create());
 	this.rotation = 0;
 	this.boundingPos = vec3.create();
 	this.boundingRad = 0;
@@ -539,14 +550,108 @@ Body.prototype.createConstraints = function(iterations){
 		}
 	}
 }
+Body.prototype.debugDraw = function(ctx){	
+	ctx.save();
+	ctx.strokeStyle = 'rgba(142,142,142,0.5)';
 
+	ctx.beginPath();
+	for(var i = 0; i < this.clist.length; i++){
+		var c = this.clist[i];
+		ctx.moveTo(c.v1.cpos[0], c.v1.cpos[1]);
+		ctx.lineTo(c.v2.cpos[0], c.v2.cpos[1]);
+	}
+	ctx.stroke();
+	
+	for(var j = 0; j < this.vlist.length; j++){
+		ctx.beginPath();
+		var v = this.vlist[j];
+		ctx.arc(v.cpos[0], v.cpos[1], v.rad, 0, Math.PI*2, false);
+		ctx.stroke();
+		
+		// draw vertex bounding box
+		//var mm = v.getBoundingBox();
+		//ctx.strokeRect(
+		//	 mm.min[0] + offset[0]
+		//	,mm.min[1] + offset[1]
+		//	,2*(mm.max[0]-v.cpos[0])
+		//	,2*(mm.max[1]-v.cpos[1])
+		//);
+	}	
+	
+	ctx.beginPath();
+	ctx.arc(this.boundingPos[0], this.boundingPos[1], this.boundingRad, 0, Math.PI*2, false);
+	ctx.stroke();
+	
+	ctx.restore();
+}
+
+//---------------------------------------------------------------------
+// SingleVertexBody: for use as a projectile and... other stuff
+//---------------------------------------------------------------------
 function SingleVertexBody(){
 	Body.call(this);
 	var v = new Vertex([0,0,0]);
 	this.vlist.push(v);
+	this.regA = this.regB = v; // there's only one!
 }
 SingleVertexBody.prototype = new Body();
 SingleVertexBody.constructor = SingleVertexBody;
+
+SingleVertexBody.prototype.computeOrientationMatrix = function(){
+	// this is all irrelevant to compute for only one vertex
+	return this;
+}
+
+//---------------------------------------------------------------------
+// RectangleBody: can be square or not
+//---------------------------------------------------------------------
+function RectangleBody(w, h){
+	Body.call(this);
+	
+	var  fillers = []
+		,fRad = Math.min(w, h) / 2
+		,cornerRad = fRad / 8
+		,widerThanTall = w > h ? true : false
+		,widthFillerCount = ~~(w / fRad)
+		,heightFillerCount = ~~(h / fRad);
+	
+	if(widerThanTall === true){
+		for(var i = 1; i < widthFillerCount; i++){
+			fillers.push( vec3.create([i*fRad, fRad, 0]) )
+		}
+	} else {
+		for(var i = 1; i < heightFillerCount; i++){
+			fillers.push( vec3.create([fRad, i*fRad, 0]) )
+		}
+	}
+
+	var corners = [
+		 vec3.create([cornerRad, cornerRad, 0])
+		,vec3.create([w-cornerRad, cornerRad, 0])
+		,vec3.create([w-cornerRad, h-cornerRad, 0])
+		,vec3.create([cornerRad,  h-cornerRad, 0])
+	];
+	
+	for(var c = 0; c < corners.length; c++){
+		var q = new THWAP.Vertex(corners[c]);
+		q.rad = cornerRad;
+		this.vlist.push(q);
+	}
+	
+	for(var v = 0; v < fillers.length; v++){
+		var p = new THWAP.Vertex(fillers[v]);
+		p.rad = fRad;
+		this.vlist.push(p);
+	}
+
+	this.createConstraints(5);
+	
+	// this exploits the idea that corners were added first
+	this.regA = this.vlist[0];
+	this.regB = this.vlist[1];
+}
+RectangleBody.prototype = new Body();
+RectangleBody.constructor = RectangleBody;
 
 //---------------------------------------------------------------------
 // Export
@@ -557,6 +662,7 @@ window.THWAP = {
 	,LinearConstraint: LinearConstraint
 	,Body: Body
 	,SingleVertexBody: SingleVertexBody
+	,RectangleBody: RectangleBody
 	,World: World
 };
 })();
