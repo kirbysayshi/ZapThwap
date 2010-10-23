@@ -55,9 +55,9 @@ var ANGRY = {};
 	ZAP.CGLM.setFPS(100);
 	
 	ZAP.CGLM.register(function priorityOne(dt){
-		dt *= 0.001; // dt comes in ms, we need seconds
+		//dt *= 0.001; 
 		KEY.dispatcher();
-		TWorld.step(dt);
+		TWorld.step(dt*0.001); // dt comes in ms, we need seconds
 		box.physicsObject.addAcceleration([0,1000,0]);
 		box2.physicsObject.addAcceleration([0,1000,0]);
 		
