@@ -7,6 +7,7 @@ var ANGRY = {};
 		,$dWorld = $("#domWorld")
 		,$dView = $("#domViewport")
 		,$cWorld = $("#cvsWorld")
+		,info = $("#info")[0]
 		,ctx = $cWorld[0].getContext('2d')
 		,box = new ZAP.Entities.Box(62, 64, 'src/zap/defaults/mmzmugs1sheet.gif')
 		,box2 = new ZAP.Entities.Box(62, 64, 'src/zap/defaults/mmzmugs1sheet.gif')
@@ -20,26 +21,26 @@ var ANGRY = {};
 	
 	wall.physicsObject.vlist.forEach(function(v){
 		v.isFree = false;
-		//v.isCollidable = false;
+		v.isCollidable = false;
 	});
 	
 	wall.physicsObject.clist.forEach(function(c){
 		c.isFree = false;
-		c.isCollidable = false;
+		//c.isCollidable = false;
 	});
 	
 	box.physicsObject
 		.moveTo([80,340,0])
 		.setPassiveFriction(0.001)
-		.setCollisionFriction(0.5)
+		.setCollisionFriction(1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
 		});
 	
 	box2.physicsObject
-		.moveTo([81,275,0])
+		.moveTo([80,275,0])
 		.setPassiveFriction(0.001)
-		.setCollisionFriction(0.5)
+		.setCollisionFriction(1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
 		});
@@ -49,10 +50,9 @@ var ANGRY = {};
 		.addBody(box2.physicsObject)
 		.addBody(wall.physicsObject);
 	
-	//console.log(box.physicsObject.clist.length);
-	//console.log(box.physicsObject.vlist.length);
-	
-	ZAP.CGLM.setFPS(100);
+	ZAP.CGLM
+		.setFPS(100)
+		.setMode('accuracy', 5);
 	
 	ZAP.CGLM.register(function priorityOne(dt){
 		//dt *= 0.001; 
@@ -64,12 +64,13 @@ var ANGRY = {};
 		box.update(dt);
 		box2.update(dt); 
 		wall.update(dt);
-	}, function priorityTwo(dt){
+	}, function priorityTwo(dt, fps, afps, lag, iterations){
 		dt *= 0.001;
 		ctx.clearRect(0,0,2000,2000);
-		box.debugDraw(ctx, [0,0,0]);
-		box2.debugDraw(ctx, [0,0,0]);
-		wall.debugDraw(ctx, [0,0,0]);
+		box.debugDraw(ctx);
+		box2.debugDraw(ctx);
+		wall.debugDraw(ctx);
+		info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
 	});
 	
 	KEY.listen(function(down){

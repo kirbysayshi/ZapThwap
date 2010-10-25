@@ -34,9 +34,8 @@ World.prototype.addBody = function(b){
 		this.addConstraint(b.clist[i]);
 	}
 	
-	// special single vertex case
-	if(b.clist.length == 0){
-		this.addVertex(b.vlist[0]);
+	for(var j = 0; j < b.vlist.length; j++){
+		this.addVertex(b.vlist[j]);
 	}
 	
 	return this;
@@ -152,9 +151,10 @@ Vertex.prototype.collideConstraint = function(c){
 	if(this.isFree === true){
 		// move vertex from plane
 		vec3.add(this.cpos, vec3.scale(vec3.create(edgeNormal), collisionDepth), this.cpos);
+		//vec3.add(this.ppos, vec3.scale(vec3.create(edgeNormal), -collisionDepth), this.ppos);
 	
 		// apply more friction when colliding
-		vec3.subtract(this.ppos, vec3.scale(velocityCollisionPlane, -this.cfric), this.ppos);
+		vec3.subtract(this.ppos, vec3.scale(velocityCollisionPlane, -this.cfric*this.imass), this.ppos);
 	}
 	
 	// apply collision to each vertex, if they are free
@@ -164,7 +164,7 @@ Vertex.prototype.collideConstraint = function(c){
 		vec3.add(c.v2.cpos, vec3.scale(vec3.negate(vec3.create(edgeNormal)), collisionDepth), c.v2.cpos);
 
 		// apply more friction when colliding
-		vec3.negate(vec3.scale(velocityCollisionPlane, -this.cfric));
+		vec3.negate(vec3.scale(velocityCollisionPlane, -(c.v1.cfric + c.v2.cfric) /2));
 		vec3.subtract(c.v1.ppos, velocityCollisionPlane, c.v1.ppos);
 		vec3.subtract(c.v2.ppos, velocityCollisionPlane, c.v2.ppos);
 	}
@@ -261,16 +261,6 @@ Vertex.prototype.getBoundingBox = function(){
 	vec3.add(this.cpos, radius, max);
 	return {min: min, max: max};
 }
-Vertex.prototype.checkBounds = function(){
-	this.cpos[0] = Math.min(this.cpos[0] + this.rad, WORLD.dim[0] - this.rad);
-	this.cpos[1] = Math.min(this.cpos[1] + this.rad, WORLD.dim[1] - this.rad);
-	this.cpos[2] = Math.min(this.cpos[2] + this.rad, WORLD.dim[2] - this.rad);
-	
-	this.cpos[0] = Math.max(this.cpos[0] - this.rad, this.rad);
-	this.cpos[1] = Math.max(this.cpos[1] - this.rad, this.rad);
-	this.cpos[2] = Math.max(this.cpos[2] - this.rad, this.rad);
-	return this;
-}
 Vertex.prototype.debugDraw = function(ctx){
 	
 }
@@ -295,15 +285,17 @@ function LinearConstraint(v1, v2, iterations, restLen){
 	this.iterations = iterations || 5
 	this.restLength2 = this.restLength*this.restLength;
 	this.imass = v1.imass + v2.imass;
-	this.isFree = false; // cannot move, ie static geometry (like the ground)
+	this.isFree = true; // cannot move, ie static geometry (like the ground)
 	this.isCollidable = true;
 	// normal is assumed to be the "left" side of v2 - v1
 	this.normal = vec3.create([0,0,0]);
 	this.computeNormal(); // calculate normal here
 	
-	if(!v1.isFree && !v2.isFree){
-		// this flag tells us we don't need to recalculate the normal
+	if(v1.isFree || v2.isFree){
 		this.isFree = true;
+	} else {
+		// this flag tells us we don't need to recalculate the normal
+		this.isFree = false;
 	}
 }
 LinearConstraint.prototype.satisfy = function(){
@@ -319,17 +311,23 @@ LinearConstraint.prototype.satisfy = function(){
 		vec3.subtract(v2.cpos, v1.cpos, delta);
 		delta2 = vec3.dot(delta, delta);
 		// square root approximation
-		diff = this.restLength2 / (delta2 + this.restLength2) - 0.5;
-		diff *= -2;
-	
-		vec3.scale(delta, diff/this.imass);
-		vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
-		vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
+		//var diffA = (this.restLength2 / (delta2 + this.restLength2) - 0.5) * -2;
+		//var diffB = (vec3.length(delta) - this.restLength) * 0.01;
+		diff = (vec3.length(delta) - this.restLength) / this.restLength;
+		//diff = (this.restLength2 / (delta2 + this.restLength2) - 0.5) * -2;
+		//console.log(diff, (Math.sqrt(delta2) - this.restLength), diff - (Math.sqrt(delta2) - this.restLength));
+		
+		//if(Math.abs(diff) > THWAP.EPSILON){
+			//console.log(diffA, diffB);
+			vec3.scale(delta, diff/this.imass);
+			vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
+			vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
+		//}
 	}
 	return this;
 }
 LinearConstraint.prototype.computeNormal = function(){
-	if(this.isFree === true) { return this; }
+	if(this.isFree === false) { return this; }
 	
 	var diff = vec3.create();
 	vec3.subtract(this.v2.cpos, this.v1.cpos, diff);
@@ -345,6 +343,25 @@ LinearConstraint.prototype.update = function(dt){
 	
 	return this;
 }
+LinearConstraint.prototype.debugDrawNormal = function(ctx, offset){
+	offset = offset || [0,0,0];
+	ctx.save();
+	ctx.strokeStyle = "red";
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	
+	var midpoint = [
+		(this.v1.cpos[0] + this.v2.cpos[0]) / 2,
+		(this.v1.cpos[1] + this.v2.cpos[1]) / 2,
+		0
+	];
+	var normalEnd = vec3.add(vec3.scale(this.normal, this.restLength / 8, vec3.create()), midpoint);
+	ctx.moveTo(midpoint[0]  + offset[0], midpoint[1] + offset[1]);
+	ctx.lineTo(normalEnd[0] + offset[0], normalEnd[1] + offset[1]);
+	
+	ctx.stroke();
+	ctx.restore();
+}
 //---------------------------------------------------------------------
 // Body: collection of constraints and vertices, with orientation
 //---------------------------------------------------------------------
@@ -356,7 +373,7 @@ function Body(){
 	this.solidity = 1; // how many times the constraints and vertices are updated per loop
 	this.orientation = mat4.identity(mat4.create());
 	this.rotation = 0;
-	this.boundingPos = vec3.create();
+	this.boundingPos = vec3.create([0,0,0]);
 	this.boundingRad = 0;
 	//this.dirty = true; // let's optimize later
 	
@@ -429,21 +446,22 @@ Body.prototype.rotate = function(rads){
 	}
 	return this;
 };
-Body.prototype.update = function(dt){
-	for(var k = 0; k < this.solidity; k++){
-		var  i = 0
-			,j = 0;
-		
-		for(; i < this.vlist.length; i++){
-			this.vlist[i].update(dt);
-		}
-	
-		for(; j < this.clist.length; j++){
-			this.clist[j].update(dt);
-		}
-	}
-	return this;
-}
+//Body.prototype.update = function(dt){
+//	console.log("BODY UPDATE");
+//	for(var k = 0; k < this.solidity; k++){
+//		var  i = 0
+//			,j = 0;
+//		
+//		for(; i < this.vlist.length; i++){
+//			this.vlist[i].update(dt);
+//		}
+//	
+//		for(; j < this.clist.length; j++){
+//			this.clist[j].update(dt);
+//		}
+//	}
+//	return this;
+//}
 Body.prototype.addAcceleration = function(vec){
 	for(var i = 0; i < this.vlist.length; i++){
 		vec3.add(this.vlist[i].acel, vec);
@@ -544,28 +562,43 @@ Body.prototype.setCollisionFriction = function(fric){
 Body.prototype.createConstraints = function(iterations){
 	for(var i = 0; i < this.vlist.length; i++){
 		for(var j = i+1; j < this.vlist.length; j++){
-			this.clist.push( 
-				new THWAP.LinearConstraint(this.vlist[i], this.vlist[j], iterations) 
-			);
+
+			// check to make sure this constraint doesn't exist yet
+			var ok = true;
+			for(var c = 0; c < this.clist.length; c++){
+				var con = this.clist[c];
+				if(con.v1 == this.vlist[i] && con.v2 == this.vlist[j]
+				|| con.v1 == this.vlist[j] && con.v2 == this.vlist[i]){
+					ok = false;
+				}
+			}
+			
+			if(ok === true){
+				this.clist.push( 
+					new THWAP.LinearConstraint(this.vlist[i], this.vlist[j], iterations) 
+				);
+			}
 		}
 	}
 }
-Body.prototype.debugDraw = function(ctx){	
+Body.prototype.debugDraw = function(ctx, offset){	
+	offset = offset || [0,0,0];
 	ctx.save();
 	ctx.strokeStyle = 'rgba(142,142,142,0.5)';
 
-	ctx.beginPath();
 	for(var i = 0; i < this.clist.length; i++){
 		var c = this.clist[i];
-		ctx.moveTo(c.v1.cpos[0], c.v1.cpos[1]);
-		ctx.lineTo(c.v2.cpos[0], c.v2.cpos[1]);
+		c.debugDrawNormal(ctx, offset);
+		ctx.beginPath();
+		ctx.moveTo(c.v1.cpos[0] + offset[0], c.v1.cpos[1] + offset[1]);
+		ctx.lineTo(c.v2.cpos[0] + offset[0], c.v2.cpos[1] + offset[1]);
+		ctx.stroke();
 	}
-	ctx.stroke();
 	
 	for(var j = 0; j < this.vlist.length; j++){
 		ctx.beginPath();
 		var v = this.vlist[j];
-		ctx.arc(v.cpos[0], v.cpos[1], v.rad, 0, Math.PI*2, false);
+		ctx.arc(v.cpos[0] + offset[0], v.cpos[1] + offset[1], v.rad, 0, Math.PI*2, false);
 		ctx.stroke();
 		
 		// draw vertex bounding box
@@ -579,7 +612,7 @@ Body.prototype.debugDraw = function(ctx){
 	}	
 	
 	ctx.beginPath();
-	ctx.arc(this.boundingPos[0], this.boundingPos[1], this.boundingRad, 0, Math.PI*2, false);
+	ctx.arc(this.boundingPos[0] + offset[0], this.boundingPos[1] + offset[1], this.boundingRad, 0, Math.PI*2, false);
 	ctx.stroke();
 	
 	ctx.restore();
@@ -588,10 +621,10 @@ Body.prototype.debugDraw = function(ctx){
 //---------------------------------------------------------------------
 // SingleVertexBody: for use as a projectile and... other stuff
 //---------------------------------------------------------------------
-function SingleVertexBody(){
+function SingleVertexBody(rad){
 	Body.call(this);
 	var v = new Vertex([0,0,0]);
-	this.vlist.push(v);
+	this.vlist.push(v, v2);
 	this.regA = this.regB = v; // there's only one!
 }
 SingleVertexBody.prototype = new Body();
@@ -603,9 +636,46 @@ SingleVertexBody.prototype.computeOrientationMatrix = function(){
 }
 
 //---------------------------------------------------------------------
-// RectangleBody: can be square or not
+// RectangleBody: max of 4 verticies, 6 constraints
 //---------------------------------------------------------------------
 function RectangleBody(w, h){
+	Body.call(this);
+
+	var corners = [
+		 vec3.create([0, 0, 0])
+		,vec3.create([w, 0, 0])
+		,vec3.create([w, h, 0])
+		,vec3.create([0, h, 0])
+	];
+	
+	for(var c = 0; c < corners.length; c++){
+		var q = new THWAP.Vertex(corners[c]);
+		q.rad = 1;
+		this.vlist.push(q);
+	}
+	
+	// these are done manually to make sure that all normals point outward
+	this.clist.push(
+		new THWAP.LinearConstraint(this.vlist[0], this.vlist[1], 5),
+		new THWAP.LinearConstraint(this.vlist[1], this.vlist[2], 5),
+		new THWAP.LinearConstraint(this.vlist[2], this.vlist[3], 5),
+		new THWAP.LinearConstraint(this.vlist[3], this.vlist[0], 5),
+		new THWAP.LinearConstraint(this.vlist[0], this.vlist[2], 5),
+		new THWAP.LinearConstraint(this.vlist[1], this.vlist[3], 5)
+	);
+
+	//this.createConstraints(5);
+	
+	this.regA = this.vlist[0];
+	this.regB = this.vlist[1];
+}
+RectangleBody.prototype = new Body();
+RectangleBody.constructor = RectangleBody;
+
+//---------------------------------------------------------------------
+// ComplexRectangleBody: can be square or not
+//---------------------------------------------------------------------
+function ComplexRectangleBody(w, h){
 	Body.call(this);
 	
 	var  fillers = []
@@ -638,6 +708,13 @@ function RectangleBody(w, h){
 		this.vlist.push(q);
 	}
 	
+	this.clist.push(
+		new THWAP.LinearConstraint(this.vlist[0], this.vlist[1], 5),
+		new THWAP.LinearConstraint(this.vlist[1], this.vlist[2], 5),
+		new THWAP.LinearConstraint(this.vlist[2], this.vlist[3], 5),
+		new THWAP.LinearConstraint(this.vlist[3], this.vlist[0], 5)
+	);
+	
 	for(var v = 0; v < fillers.length; v++){
 		var p = new THWAP.Vertex(fillers[v]);
 		p.rad = fRad;
@@ -650,8 +727,114 @@ function RectangleBody(w, h){
 	this.regA = this.vlist[0];
 	this.regB = this.vlist[1];
 }
-RectangleBody.prototype = new Body();
-RectangleBody.constructor = RectangleBody;
+ComplexRectangleBody.prototype = new Body();
+ComplexRectangleBody.constructor = ComplexRectangleBody;
+
+//---------------------------------------------------------------------
+// CircleBox: Four closely-overlapping circles. Very sturdy
+//---------------------------------------------------------------------
+function CircleBox(w){
+	Body.call(this);
+	
+	var  rad = w * Math.sqrt(2) / 2
+		,s = w / 2
+		,corners = [
+			 vec3.create([0, 0, 0])
+			,vec3.create([s, 0, 0])
+			,vec3.create([s, s, 0])
+			,vec3.create([0, s, 0])
+		];
+	
+	for(var c = 0; c < corners.length; c++){
+		var q = new THWAP.Vertex(corners[c]);
+		q.rad = rad;
+		this.vlist.push(q);
+	}
+
+	this.createConstraints(5);
+	this.regA = this.vlist[0];
+	this.regB = this.vlist[1];
+}
+CircleBox.prototype = new Body();
+CircleBox.constructor = CircleBox;
+
+//---------------------------------------------------------------------
+// SolidSphere: 
+// This blows up unless two or more vertices are heavier than the others
+//---------------------------------------------------------------------
+function SolidSphere(rad){
+	Body.call(this);
+	
+	var vCount = 8;
+	
+	for(var i = 0; i < vCount; i++){
+		var t = (Math.PI * 2) * (i / vCount)
+			,pos = vec3.scale( [Math.cos(t), Math.sin(t), 0], rad )
+			,p = new THWAP.Vertex(pos);
+		p.rad = rad;
+		this.vlist.push(p);
+	}
+	
+	this.createConstraints(5);
+	this.clist.forEach(function(c){
+		c.isCollidable = false;
+	});
+	
+	// the loop operates counter-clockwise
+	this.regA = this.vlist[2];
+	this.regB = this.vlist[0];
+	
+	// make it not blow up... it needs an anchor, 
+	// otherwise it spins out of control
+	this.vlist[0].imass = 1/10;
+	this.vlist[2].imass = 1/10;
+}
+SolidSphere.prototype = new Body();
+SolidSphere.constructor = SolidSphere;
+
+//---------------------------------------------------------------------
+// BoundsBox: Keeps things in... sort of
+//---------------------------------------------------------------------
+function BoundsBox(tL, bR){
+	Body.call(this);
+	
+	// this goes counter-clockwise to have the normals point inward
+	var vs = [
+		 vec3.create([tL[0],tL[1],0])
+		,vec3.create([tL[0],bR[1],0])
+		,vec3.create([bR[0],bR[1],0])
+		,vec3.create([bR[0],tL[1],0])
+	];
+	
+	for(var i = 0; i < vs.length; i++){
+		var v = new THWAP.Vertex(vs[i]);
+		v.isFree = false;
+		v.rad = 20;
+		v.cfric = 0;
+		v.imass = 1/10;
+		this.vlist.push(v);
+		
+		// connect previous to new 
+		if(i > 0 && i < vs.length){
+			var c = new THWAP.LinearConstraint(this.vlist[i-1], v);
+			c.isCollidable = true;
+			c.isFree = false;
+			this.clist.push(c);
+		}
+		
+		// connect last to first
+		if(i == vs.length - 1){
+			var c = new THWAP.LinearConstraint(v, this.vlist[0]);
+			c.isCollidable = true;
+			c.isFree = false;
+			this.clist.push(c);
+		}
+	}
+	this.regA = this.vlist[0];
+	this.regB = this.vlist[this.vlist.length-1];
+}
+BoundsBox.prototype = new Body();
+BoundsBox.constructor = BoundsBox;
 
 //---------------------------------------------------------------------
 // Export
@@ -663,6 +846,10 @@ window.THWAP = {
 	,Body: Body
 	,SingleVertexBody: SingleVertexBody
 	,RectangleBody: RectangleBody
+	,ComplexRectangleBody: ComplexRectangleBody
+	,CircleBox: CircleBox
+	,SolidSphere: SolidSphere
+	,BoundsBox: BoundsBox
 	,World: World
 };
 })();

@@ -19,37 +19,45 @@ var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
-	,numParticles = 30;	
+	,numParticles = 5;	
 
 var middle = [ $cWorld[0].width / 2, $cWorld[0].height / 2, 0 ];	
 for(var i = 0; i < numParticles; i++){
-	var  pos = vec3.add(middle, [Math.random()*20, Math.random()*20, 0], vec3.create())
-		,p = new THWAP.SingleVertexBody();
+	var  pos = vec3.add(middle, [Math.random()*40, Math.random()*40, 0], vec3.create())
+		,p = new THWAP.ComplexRectangleBody(20,20);
 	
-	p
-		.moveTo(pos)
+	p.moveTo(pos)
 		.setPassiveFriction(0)
-		.setCollisionFriction(0.5)
-		.vlist[0].rad = 8;
+		.setCollisionFriction(0)
+		.clist.forEach(function(c){
+			c.isCollidable = false;
+		});
+		//.vlist[0].rad = 20;
 	
 	TWorld.addBody(p);
 }		
+
+var bounds = new THWAP.BoundsBox([10,10,0], [590,590,0]);
+TWorld.addBody(bounds);
 
 KEY.listen(function(down){
 	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
 });
 
-ZAP.CGLM.setFPS(200);
+ZAP.CGLM
+	.setFPS(30)
+	.setMode('accuracy', 10);
 
 ZAP.CGLM.register(function priorityOne(dt){
 	KEY.dispatcher();
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
-}, function priorityTwo(dt, fps, afps, lag){
-	ctx.clearRect(0,0,2000,2000);
+}, function priorityTwo(dt, fps, afps, lag, iterations){
+	ctx.clearRect(0,0,600,600);
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx);
 	}
-	info.innerHTML = "FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag;
+	//console.log(arguments);
+	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
 });
 
 ZAP.CGLM.start();

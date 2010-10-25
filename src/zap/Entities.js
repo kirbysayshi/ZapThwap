@@ -172,7 +172,7 @@ Box.prototype = {
 				(this.physicsObject.orientation)
 			.draw();
 	}
-	,debugDraw: function(ctx, offset){
+	,debugDraw: function(ctx){
 		var  v1 = this.physicsObject.vlist[0]
 			,v2 = this.physicsObject.vlist[1]
 			,v3 = this.physicsObject.vlist[2]
@@ -181,37 +181,40 @@ Box.prototype = {
 		ctx.save();
 		ctx.strokeStyle = 'rgba(142,142,142,0.5)';
 
-		ctx.beginPath();
+		
 		for(var i = 0; i < this.physicsObject.clist.length; i++){
 			var c = this.physicsObject.clist[i];
-			ctx.moveTo(c.v1.cpos[0] + offset[0], c.v1.cpos[1] + offset[1]);
-			ctx.lineTo(c.v2.cpos[0] + offset[0], c.v2.cpos[1] + offset[1]);
+			c.debugDrawNormal(ctx);
+			ctx.beginPath();
+			ctx.moveTo(c.v1.cpos[0], c.v1.cpos[1]);
+			ctx.lineTo(c.v2.cpos[0], c.v2.cpos[1]);
+			ctx.stroke();
 		}
-		ctx.stroke();
+		
 
 		// draw vertices
 		ctx.fillStyle = "#FF0000"; // red
 		ctx.beginPath();
-		ctx.arc(v1.cpos[0] + offset[0], v1.cpos[1] + offset[1], v1.rad, 0, Math.PI*2, false);
+		ctx.arc(v1.cpos[0], v1.cpos[1], v1.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		ctx.fillStyle = "#CC66FF"; // purple
 		ctx.beginPath();
-		ctx.arc(v2.cpos[0] + offset[0], v2.cpos[1] + offset[1], v2.rad, 0, Math.PI*2, false);
+		ctx.arc(v2.cpos[0], v2.cpos[1], v2.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		ctx.fillStyle = "#33FFFF"; // aquamarine
 		ctx.beginPath();
-		ctx.arc(v3.cpos[0] + offset[0], v3.cpos[1] + offset[1], v3.rad, 0, Math.PI*2, false);
+		ctx.arc(v3.cpos[0], v3.cpos[1], v3.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		ctx.fillStyle = "#99CC33"; // green
 		ctx.beginPath();
-		ctx.arc(v4.cpos[0] + offset[0], v4.cpos[1] + offset[1], v4.rad, 0, Math.PI*2, false);
+		ctx.arc(v4.cpos[0], v4.cpos[1], v4.rad, 0, Math.PI*2, false);
 		ctx.fill();
 		
 		
 		for(var j = 0; j < this.physicsObject.vlist.length; j++){
 			ctx.beginPath();
 			var v = this.physicsObject.vlist[j];
-			ctx.arc(v.cpos[0] + offset[0], v.cpos[1] + offset[1], v.rad, 0, Math.PI*2, false);
+			ctx.arc(v.cpos[0], v.cpos[1], v.rad, 0, Math.PI*2, false);
 			ctx.stroke();
 			
 			// draw vertex bounding box
@@ -226,7 +229,7 @@ Box.prototype = {
 		
 		var phys = this.physicsObject;
 		ctx.beginPath();
-		ctx.arc(phys.boundingPos[0] + offset[0], phys.boundingPos[1] + offset[1], phys.boundingRad, 0, Math.PI*2, false);
+		ctx.arc(phys.boundingPos[0], phys.boundingPos[1], phys.boundingRad, 0, Math.PI*2, false);
 		ctx.stroke();
 		
 		ctx.restore();
