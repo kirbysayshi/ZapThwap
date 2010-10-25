@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>ZAP - Scrolling Demo</title>
+	</head>
+	<body>
+		<canvas id="cvsWorld" width="600" height="600" style="background-color: black;"></canvas>
+		<div id="info"></div>
+		<script type="text/javascript" src="../lib/glMatrix.js"></script>
+		<script type="text/javascript" src="../lib/jquery-1.4.2.min.js"></script>
+		
+		<script src="../zap/Thwap.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../zap/Key.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../zap/Entities.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+var  TWorld = new THWAP.World()
+	,$cWorld = $("#cvsWorld")
+	,info = $("#info")[0]
+	,ctx = $cWorld[0].getContext('2d')
+	//,focus = new THWAP.SingleVertexBody(50)
+	,focus = new THWAP.CircleBox(50)
+	//,focus = new THWAP.ComplexRectangleBody(50,50)
+	//,focus = new THWAP.SolidSphere(50)
+	//,focus = new THWAP.RectangleBody(15,15)
+	,bounds = new THWAP.BoundsBox([-2000,-200,0], [5500,600,0])
+	,ground = new THWAP.RectangleBody(5000, 200);
+
+console.log(focus);
+
+ground.moveTo([-200,500,0]);
+ground.vlist.forEach(function(v){
+	v.isFree = false;
+	//v.isCollidable = false;
+});
+ground.clist.forEach(function(c){
+	c.isFree = false;
+});
+
+focus.vlist.forEach(function(v){
+	v.rad = 20;
+});
+
+focus.vlist[2].imass = 1/10;
+focus.vlist[3].imass = 1/10;
+
+focus
+	.setPassiveFriction(0.01)
+	.setCollisionFriction(0.01);
+
+TWorld
+	.addBody(ground)
+	.addBody(focus)
+	.addBody(bounds);
+
+KEY.listen(function(down){
+	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
+	
+	if(down[87].delta > 0 && down[87].delta < 100){ // W
+		focus.addAcceleration([0,-10000,0]);
+	}
+	
+	if(down[83].delta > 0){ // S
+		focus.addAcceleration([0,1000,0]);
+	}
+	
+	if(down[65].delta > 0){ // A
+		focus.addAcceleration([-1000,0,0]);
+	}
+	
+	if(down[68].delta > 0){ // D
+		focus.addAcceleration([1000,0,0]);
+	}
+});
+
+ZAP.CGLM
+	.setFPS(100)
+	.setMode('accuracy', 10);
+
+ZAP.CGLM.register(function priorityOne(dt){
+	KEY.dispatcher();
+	focus.addAcceleration([0,1000,0]);
+	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
+}, function priorityTwo(dt, fps, afps, lag, iterations){
+	ctx.clearRect(0,0,600,600);
+	var offset = vec3.negate( ZAP.Scroller.getOffset(focus.boundingPos) );
+	for(var i = 0; i < TWorld.blist.length; i++){
+		TWorld.blist[i].debugDraw(ctx, offset);
+	}
+	console.log(offset);
+	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
+});
+
+ZAP.Scroller.set([600, 600, 0]);
+
+ZAP.CGLM.start();
+		
+		</script>
+	</body>
+</html>
