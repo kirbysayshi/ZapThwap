@@ -474,7 +474,7 @@ Body.prototype.computeBoundingSphere = function(){
 	}
 	var minMax = this.vlist[0].getBoundingBox()
 		,min = [ Number.MAX_VALUE,  Number.MAX_VALUE,  Number.MAX_VALUE]
-		,max = [-Number.MIN_VALUE, -Number.MIN_VALUE, -Number.MIN_VALUE];
+		,max = [-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE];
 	
 	for(var i = 0; i < this.vlist.length; i++){
 		var  pMinMax = this.vlist[i].getBoundingBox()

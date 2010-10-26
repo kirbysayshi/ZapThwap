@@ -196,7 +196,7 @@ ZAP.Scroller = (function(){
 	//	|			   |---|	|	  x		|		|---|		|
 	//	0			   14		?	  29,2          43	
 	//							23
-    //	
+	
 	//	worldoff = focusWPos - focusVPos
 	//	worldOff = focusWPos - viewport/2
 	//				   viewport/2 = scrollfocusregion
@@ -206,6 +206,12 @@ ZAP.Scroller = (function(){
 	self.getOffset = function(focusPos){
 		
 		var worldOff = vec3.subtract(focusPos, halfPort, vec3.create());
+		
+		worldOff[0] *= -1;
+		worldOff[1] *= -1;
+		
+		//if(focusPos[0] < 0) worldOff[0] -= focusPos[0];
+		//if(focusPos[1] < 0) worldOff[1] -= focusPos[1];
 		
 		if(bound === true){
 			worldOff[0] = worldOff[0] > 0 ? Math.max(worldOff[0], bounds[0]) : Math.max(worldOff[0], 0);

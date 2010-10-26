@@ -84,11 +84,11 @@ ZAP.CGLM.register(function priorityOne(dt){
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
 }, function priorityTwo(dt, fps, afps, lag, iterations){
 	ctx.clearRect(0,0,600,600);
-	var offset = vec3.negate( ZAP.Scroller.getOffset(focus.boundingPos) );
+	var offset = ZAP.Scroller.getOffset(focus.boundingPos);
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx, offset);
 	}
-	console.log(offset);
+	//console.log(offset, focus.boundingPos);
 	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
 });
 
