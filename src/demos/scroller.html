@@ -10,22 +10,25 @@
 		<script type="text/javascript" src="../lib/glMatrix.js"></script>
 		<script type="text/javascript" src="../lib/jquery-1.4.2.min.js"></script>
 		
-		<script src="../zap/Thwap.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../zap/Thwap.Core.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../zap/Thwap.Entities.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../zap/Key.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../zap/Entities.js" type="text/javascript" charset="utf-8"></script>
 		<script type="text/javascript">
+
+		
 var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
-	//,focus = new THWAP.SingleVertexBody(50)
-	,focus = new THWAP.CircleBox(50)
-	//,focus = new THWAP.ComplexRectangleBody(50,50)
-	//,focus = new THWAP.SolidSphere(50)
-	//,focus = new THWAP.RectangleBody(15,15)
-	,bounds = new THWAP.BoundsBox([-2000,-200,0], [5500,600,0])
-	,ground = new THWAP.RectangleBody(5000, 200);
+	//,focus = new THWAP.Entities.SingleVertexBody(50)
+	,focus = new THWAP.Entities.CircleBox(20)
+	//,focus = new THWAP.Entities.ComplexRectangleBody(20,20)
+	//,focus = new THWAP.Entities.SolidSphere(50)
+	//,focus = new THWAP.Entities.RectangleBody(15,15)
+	,bounds = new THWAP.Entities.BoundsBox([-2000,-200,0], [5500,600,0])
+	,ground = new THWAP.Entities.RectangleBody(5000, 200);
 
 console.log(focus);
 
@@ -39,11 +42,11 @@ ground.clist.forEach(function(c){
 });
 
 focus.vlist.forEach(function(v){
-	v.rad = 20;
+	//v.rad = 20;
 });
 
-focus.vlist[2].imass = 1/10;
-focus.vlist[3].imass = 1/10;
+focus.vlist[2].imass = 1/2;
+focus.vlist[3].imass = 1/2;
 
 focus
 	.setPassiveFriction(0.01)
@@ -76,7 +79,7 @@ KEY.listen(function(down){
 
 ZAP.CGLM
 	.setFPS(100)
-	.setMode('accuracy', 10);
+	.setMode('syncronicity', 10);
 
 ZAP.CGLM.register(function priorityOne(dt){
 	KEY.dispatcher();
