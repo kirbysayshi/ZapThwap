@@ -1,5 +1,7 @@
 (function(){
 
+// TODO: restructure angry to be a demo, instead of in root
+
 var ZAP = {};
 ZAP.EPSILON = 0.001;
 
