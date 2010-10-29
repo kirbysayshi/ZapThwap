@@ -1,5 +1,15 @@
 (function(){	
 
+// TODO: collision callbacks. implement as CollisionTracker.query(), or
+// 		real callbacks? store all collision data: depth, involved bodies,
+// 		calculate force of collision?
+// TODO: add some sort of scaling to debug draw, since small values
+// 		for constraints cause explosions... maybe only in ZAP.Scroller? 
+// TODO: rename bounding circle to bounding sphere
+// TODO: add 'bounciness' factor for single-vertex bodies. perhaps just
+// 		override collision methods for single-vertex to have more bounce?
+
+
 //---------------------------------------------------------------------
 // ThwapWorld
 //---------------------------------------------------------------------
@@ -105,7 +115,20 @@ Vertex.prototype.collideConstraint = function(c){
 	if(this.isCollidable === false || c.isCollidable === false
 		|| this == c.v1 || this == c.v2
 		//|| this.isFree === false
-		) return;
+		) return this;
+	
+	//---------------------------------------------------------------------
+	// Attempt to discard quickly
+	//---------------------------------------------------------------------
+	var diff = vec3.subtract(this.cpos, c.boundingPos, vec3.create())
+		,comboRad = this.rad + c.boundingRad
+		,diff2 = vec3.dot(diff, diff)
+		,comboRad2 = comboRad*comboRad;
+
+	// early out, too far apart
+	if(diff2 > comboRad2){
+		return this;
+	}
 	
 	//---------------------------------------------------------------------
 	// detect collision	
@@ -291,6 +314,10 @@ function LinearConstraint(v1, v2, iterations, restLen){
 	this.normal = vec3.create([0,0,0]);
 	this.computeNormal(); // calculate normal here
 	
+	this.boundingRad = 0;
+	this.boundingPos = vec3.create([0,0,0]);
+	this.computeBoundingCircle(); // calculate initially
+	
 	if(v1.isFree || v2.isFree){
 		this.isFree = true;
 	} else {
@@ -337,8 +364,20 @@ LinearConstraint.prototype.computeNormal = function(){
 	vec3.normalize(this.normal);
 	return this;
 }
+LinearConstraint.prototype.computeBoundingCircle = function(){
+	if(this.isFree === false) { return this; }
+	
+	// use bounding pos temporarily to avoid creating new array
+	this.boundingRad = vec3.length(
+		vec3.subtract(this.v2.cpos, this.v1.cpos, this.boundingPos)) / 2;
+		
+	vec3.scale(vec3.add(this.v1.cpos, this.v2.cpos, this.boundingPos), 0.5);
+	
+	return this;
+}
 LinearConstraint.prototype.update = function(dt){
 	this.satisfy()
+		.computeBoundingCircle()
 		.computeNormal();
 	
 	return this;
@@ -432,6 +471,15 @@ Body.prototype.moveTo = function(vec){
 		mat4.multiplyVec3(mat, v.cpos);
 		mat4.multiplyVec3(mat, v.ppos);
 	}
+	
+	// recompute constraint bounding spheres and positions
+	for(var j = 0; j < this.clist.length; j++){
+		var c = this.clist[j];
+		c.isFree = true; // to avoid the early abort
+		c.computeBoundingCircle();
+		c.isFree = false;
+	}
+	
 	return this;
 }
 // transform all vertices clockwise by radians
@@ -443,6 +491,14 @@ Body.prototype.rotate = function(rads){
 	for(var i = 0; i < this.vlist.length; i++){
 		var v = this.vlist[i];
 		mat4.multiplyVec3(rMatrix, v.cpos);
+	}
+	
+	// recompute constraint bounding spheres and positions
+	for(var j = 0; j < this.clist.length; j++){
+		var c = this.clist[j];
+		c.isFree = true; // to avoid the early abort
+		c.computeBoundingCircle();
+		c.isFree = false;
 	}
 	return this;
 };
@@ -593,6 +649,23 @@ Body.prototype.debugDraw = function(ctx, offset){
 		ctx.moveTo(c.v1.cpos[0] + offset[0], c.v1.cpos[1] + offset[1]);
 		ctx.lineTo(c.v2.cpos[0] + offset[0], c.v2.cpos[1] + offset[1]);
 		ctx.stroke();
+		
+		//ctx.save();
+		//ctx.strokeStyle = 'rgba(0,248,0,1)';
+		//ctx.fillStyle = 'rgba(0,248,0,0.2)';
+		//ctx.beginPath();
+		//ctx.arc(
+		//	c.boundingPos[0] + offset[0], 
+		//	c.boundingPos[1] + offset[1], 
+		//	c.boundingRad, 0, Math.PI*2, false);
+		//ctx.stroke();
+		//ctx.beginPath();
+		//ctx.arc(
+		//	c.boundingPos[0] + offset[0], 
+		//	c.boundingPos[1] + offset[1], 
+		//	100, 0, Math.PI*2, false);
+		//ctx.fill();
+		//ctx.restore();
 	}
 	
 	for(var j = 0; j < this.vlist.length; j++){

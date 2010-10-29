@@ -136,6 +136,10 @@ function CircleBox(w){
 		this.vlist.push(q);
 	}
 
+	//var m = new THWAP.Vertex([s/2,s/2,0]);
+	//m.rad = w/4;
+	//this.vlist.push(m);
+
 	this.createConstraints(5);
 	this.regA = this.vlist[0];
 	this.regB = this.vlist[1];

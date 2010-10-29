@@ -16,14 +16,77 @@
 		<script src="../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../zap/Entities.js" type="text/javascript" charset="utf-8"></script>
 		<script type="text/javascript">
+var CanvasHero = function(){
+	
+	this.physicsObject = new THWAP.Entities.CircleBox(40);
+	this.spriteObject = new ZAP.Entities.Sprite();
+	this.spriteObject.setAnimations(
+	[
+		 'stand_right'
+		,'stand_left'
+		,'run_right'
+		,'run_left'
+	],
+	[
+		[	// stand_right
+			 { x: 4  , y: 7, w: 13, h: 22, d: 1000}
+		]
+		,[	// stand_left
+			 { x: 3  , y: 34, w: 13, h: 22, d: 1000}
+		]
+	//	,[	// run_right
+	//		 { x: 3  , y: 4, w: 62, h: 64, d: 1000}
+	//		,{ x: 70 , y: 4, w: 62, h: 64, d: 1000}
+	//		,{ x: 137, y: 4, w: 62, h: 64, d: 1000}
+	//	]
+	//	,[	// run_left
+	//		 { x: 3  , y: 4, w: 62, h: 64, d: 1000}
+	//		,{ x: 70 , y: 4, w: 62, h: 64, d: 1000}
+	//		,{ x: 137, y: 4, w: 62, h: 64, d: 1000}
+	//	]
+	]);
+
+	this.sheet = new Image();
+	this.sheet.src = 'images/tiny_samus.png';
+}
+CanvasHero.prototype.draw = function(ctx, offset){
+	var  x = this.physicsObject.boundingPos[0]
+		,y = this.physicsObject.boundingPos[1]
+		,curAnimSeq = this.spriteObject.am[
+			this.spriteObject.al.indexOf(this.spriteObject.current)]
+		,curAFrame = curAnimSeq[ this.spriteObject.aframe ]
+		,destX = x+offset[0] - (curAFrame.w/2)
+		,destY = y+offset[1] - (curAFrame.h/2);
+	
+	// TODO: optimize these vars to not recompute
+	
+	ctx.save();
+	ctx.translate(x+offset[0], y+offset[1]);
+	ctx.rotate(this.physicsObject.rotation);
+	ctx.drawImage(this.sheet, 
+		curAFrame.x, curAFrame.y, 
+		curAFrame.w, curAFrame.h,
+		0 - (curAFrame.w/2), 0 - (curAFrame.h/2),
+		curAFrame.w, curAFrame.h);
+	ctx.restore();
+}
+CanvasHero.prototype.update = function(dt, ctx, offset){
+	this.spriteObject
+		.updateAnimation(dt)
+		.setOrientationMatrix
+			(this.physicsObject.orientation);
+	this.draw(ctx, offset);
+}
 
 		
 var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
+	,hero = new CanvasHero()
+	,focus = hero.physicsObject
 	//,focus = new THWAP.Entities.SingleVertexBody(50)
-	,focus = new THWAP.Entities.CircleBox(20)
+	//,focus = new THWAP.Entities.CircleBox(20)
 	//,focus = new THWAP.Entities.ComplexRectangleBody(20,20)
 	//,focus = new THWAP.Entities.SolidSphere(50)
 	//,focus = new THWAP.Entities.RectangleBody(15,15)
@@ -45,8 +108,18 @@ focus.vlist.forEach(function(v){
 	//v.rad = 20;
 });
 
-focus.vlist[2].imass = 1/2;
-focus.vlist[3].imass = 1/2;
+//focus.vlist[2].imass = 1/10;
+//focus.vlist[3].imass = 1/10;
+
+var dangly = new THWAP.Vertex( vec3.add(focus.boundingPos, [0,100,0], vec3.create()) );
+dangly.isCollidable = false;
+dangly.imass = 1/1;
+focus.vlist.push( dangly );
+var leash1 = new THWAP.LinearConstraint(focus.vlist[3], dangly, 5);
+var leash2 = new THWAP.LinearConstraint(focus.vlist[2], dangly, 5);
+leash1.collidable = false;
+leash2.collidable = false;
+focus.clist.push(leash1, leash2);
 
 focus
 	.setPassiveFriction(0.01)
@@ -91,6 +164,7 @@ ZAP.CGLM.register(function priorityOne(dt){
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx, offset);
 	}
+	hero.update(dt, ctx, offset);
 	//console.log(offset, focus.boundingPos);
 	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
 });
