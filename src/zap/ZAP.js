@@ -24,9 +24,46 @@ ZAP.CGLM = (function(){
 		,targetFPS = 60		
 		,targetInterval = 1000 / targetFPS
 		,timeOutRef = 0
+		,startTime = 0
 		,running = false
 		,tCommands = function(){} // time-dependent callback
 		,nCommands = function(){}; // non-time-dependent callback
+	
+	self.basic = function(){
+		var counter = 0
+			,totalRuns = 0
+			,checkInterval = 20
+			,currentFPS = 0
+			,lastCheckTime = 0
+			,lastCheckDelta = 0;
+		
+		function run(){
+			counter++;
+			totalRuns++;
+			
+			var now = +new Date();
+			if(counter === checkInterval){
+				lastCheckDelta = now - lastCheckTime;
+				currentFPS = lastCheckDelta / checkInterval;
+				lastCheckTime = now;
+			}
+			
+			tCommands(targetInterval);
+			nCommands(
+				targetInterval
+				,currentFPS.toFixed(2)
+				,((now - lastCheckTime) / totalRuns).toFixed(2)
+				,targetInterval - lastCheckDelta
+				,1
+			);
+			
+			if(counter > checkInterval) counter = 0;
+			
+			if(running === true) timeOutRef = setTimeout(self.main, targetInterval);
+		}
+		
+		return run;
+	}
 	
 	self.accuracy = function(tDT){
 		var  targetDT = tDT || 5 // ms
@@ -61,9 +98,9 @@ ZAP.CGLM = (function(){
 				,iterations
 			);
 
-			if(thisRunDT > hopefulDT * 4){
+			if(thisRunDT > hopefulDT * 10){
 				// auto stop to prevent inifinte looping?
-				console.log('DANGER, RUN TIME > 4 * EXPECTED TIME', 'RUNTIME: ' + thisRunDT, 'EXPECTED: ' + hopefulDT);
+				console.log('DANGER, RUN TIME > 10 * EXPECTED TIME', 'RUNTIME: ' + thisRunDT, 'EXPECTED: ' + hopefulDT);
 				self.stop();
 			} else {
 
@@ -125,6 +162,9 @@ ZAP.CGLM = (function(){
 				break;
 			case 'syncronicity':
 				self.main = self.syncronicity();
+				break;
+			case 'basic':
+				self.main = self.basic();
 				break;
 		}
 		return self;

@@ -7,6 +7,7 @@
 	<body>
 		<canvas id="cvsWorld" width="600" height="600" style="background-color: black;"></canvas>
 		<div id="info"></div>
+		<img src="images/tiny_samus.png" />
 		<script type="text/javascript" src="../lib/glMatrix.js"></script>
 		<script type="text/javascript" src="../lib/jquery-1.4.2.min.js"></script>
 		
@@ -48,6 +49,23 @@ var CanvasHero = function(){
 
 	this.sheet = new Image();
 	this.sheet.src = 'images/tiny_samus.png';
+	
+	this.physicsObject.computeBoundingSphere();
+	
+	var dangly = new THWAP.Vertex( vec3.add(this.physicsObject.boundingPos, [0,40/2,0], vec3.create()) );
+	dangly.isCollidable = false;
+	dangly.imass = 1/5;
+	this.physicsObject.vlist.push( dangly );
+	this.physicsObject.createConstraints(5);
+	//var leash1 = new THWAP.LinearConstraint(this.physicsObject.vlist[3], dangly, 5);
+	//var leash2 = new THWAP.LinearConstraint(this.physicsObject.vlist[2], dangly, 5);
+	//leash1.collidable = false;
+	//leash2.collidable = false;
+	//this.physicsObject.clist.push(leash1, leash2);
+	
+	this.physicsObject.clist.forEach(function(c){
+		c.collidable = false;
+	});
 }
 CanvasHero.prototype.draw = function(ctx, offset){
 	var  x = this.physicsObject.boundingPos[0]
@@ -111,16 +129,6 @@ focus.vlist.forEach(function(v){
 //focus.vlist[2].imass = 1/10;
 //focus.vlist[3].imass = 1/10;
 
-var dangly = new THWAP.Vertex( vec3.add(focus.boundingPos, [0,100,0], vec3.create()) );
-dangly.isCollidable = false;
-dangly.imass = 1/1;
-focus.vlist.push( dangly );
-var leash1 = new THWAP.LinearConstraint(focus.vlist[3], dangly, 5);
-var leash2 = new THWAP.LinearConstraint(focus.vlist[2], dangly, 5);
-leash1.collidable = false;
-leash2.collidable = false;
-focus.clist.push(leash1, leash2);
-
 focus
 	.setPassiveFriction(0.01)
 	.setCollisionFriction(0.01);
@@ -152,7 +160,7 @@ KEY.listen(function(down){
 
 ZAP.CGLM
 	.setFPS(100)
-	.setMode('syncronicity', 10);
+	.setMode('accuracy', 5);
 
 ZAP.CGLM.register(function priorityOne(dt){
 	KEY.dispatcher();

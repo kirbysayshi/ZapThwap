@@ -100,8 +100,8 @@ var ANGRY = {};
 		}
 		
 	});
-	
-	ZAP.CGLM.start();
+
+body.onload = ZAP.CGLM.start;
 //}
 
 //return new ANGRY.init();
