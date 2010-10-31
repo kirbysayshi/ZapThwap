@@ -52,7 +52,7 @@ var ANGRY = {};
 	
 	ZAP.CGLM
 		.setFPS(100)
-		.setMode('accuracy', 5);
+		.setMode('accuracy', 10);
 	
 	ZAP.CGLM.register(function priorityOne(dt){
 		//dt *= 0.001; 
@@ -101,7 +101,8 @@ var ANGRY = {};
 		
 	});
 
-body.onload = ZAP.CGLM.start;
+//body.onload = ZAP.CGLM.start;
+ZAP.CGLM.start();
 //}
 
 //return new ANGRY.init();
