@@ -96,6 +96,7 @@ World.prototype.step = function(dt){
 	
 	return this;
 }
+
 //---------------------------------------------------------------------
 // Vertex
 //---------------------------------------------------------------------
@@ -110,6 +111,17 @@ function Vertex(position){
 	this.imass = 1/1;
 	this.gfric = 0.1; // basically passive friction
 	this.cfric = 0.1; // collision friction
+	
+	this.eventCallbacks = {
+		//onCreate: function(){}
+		//onDestroy: function(){}
+		 onPreUpdate: function(){}
+		,onPostUpdate: function(){}
+		,onVertexCollisionDetection: function(vertex, collisionDepth){}
+		,onVertexCollisionResponse: function(vertex, velocityAlongCollsionPlane){}
+		,onConstraintCollisionDetection: function(constraint, collisionEdge, collisionT){}
+		,onConstraintCollisionResponse: function(constraint, velocity, collisionDepth){}
+	}
 }	
 Vertex.prototype.collideConstraint = function(c){
 	if(this.isCollidable === false || c.isCollidable === false
@@ -151,6 +163,9 @@ Vertex.prototype.collideConstraint = function(c){
 	var t = a - Math.sqrt( sqArg );
 	if(t < 0 || t > edgeLength) { return false; } // intersection point not within segment
 	
+	// vertex constraint collision detection callback
+	this.eventCallbacks.onConstraintCollisionDetection.call(this, c, edgeRay, t);
+	c.eventCallbacks.onVertexCollisionDetection.call(c, this, edgeRay, t);
 	
 	//---------------------------------------------------------------------
 	// handle collision
@@ -192,6 +207,10 @@ Vertex.prototype.collideConstraint = function(c){
 		vec3.subtract(c.v2.ppos, velocityCollisionPlane, c.v2.ppos);
 	}
 	
+	// vertex constraint collision reponse callback
+	this.eventCallbacks.onConstraintCollisionResponse.call(this, c, velocity, collisionDepth);
+	c.eventCallbacks.onVertexCollisionResponse.call(c, this, velocity, collisionDepth);
+	
 	return this;
 }
 Vertex.prototype.collideVertex = function(vert){
@@ -212,6 +231,10 @@ Vertex.prototype.collideVertex = function(vert){
 	var diffLength = Math.sqrt(diff2)
 		,depth = comboRad - diffLength
 		,comboInvMass = this.imass + vert.imass;
+	
+	// collision detection callbacks
+	this.eventCallbacks.onVertexCollisionDetection.call(this, vert, depth);
+	vert.eventCallbacks.onVertexCollisionDetection.call(vert, this, depth);
 	
 	// normalize diff
 	if(diffLength !== 0){ // verticies on top of each other
@@ -245,6 +268,10 @@ Vertex.prototype.collideVertex = function(vert){
 		vec3.add(vert.cpos, vec3.scale(velColl, (vert.cfric*vert.imass), vec3.create()));
 	}
 	
+	// collision response callbacks
+	this.eventCallbacks.onVertexCollisionResponse.call(this, vert, velColl);
+	vert.eventCallbacks.onVertexCollisionResponse.call(vert, this, velColl);
+	
 	return this;
 }
 Vertex.prototype.update = function(dt, ldt){	
@@ -253,6 +280,9 @@ Vertex.prototype.update = function(dt, ldt){
 	var s = this,
 		temp = vec3.create(s.cpos), // save for later
 		vel = vec3.create();
+	
+	// pre-update event!
+	s.eventCallbacks.onPreUpdate.call(this);
 		
 	// add gravity to acel
 	vec3.add(s.acel, s.grav);
@@ -269,6 +299,10 @@ Vertex.prototype.update = function(dt, ldt){
 	
 	// reset acceleration
 	s.acel[0] = s.acel[1] = s.acel[2] = 0;
+	
+	// post-update event!
+	s.eventCallbacks.onPostUpdate.call(this);
+	
 	return this;
 }
 Vertex.prototype.getVelocity = function(dest){
@@ -316,13 +350,22 @@ function LinearConstraint(v1, v2, iterations, restLen){
 	
 	this.boundingRad = 0;
 	this.boundingPos = vec3.create([0,0,0]);
-	this.computeBoundingCircle(); // calculate initially
+	this.computeBoundingSphere(); // calculate initially
 	
 	if(v1.isFree || v2.isFree){
 		this.isFree = true;
 	} else {
 		// this flag tells us we don't need to recalculate the normal
 		this.isFree = false;
+	}
+	
+	this.eventCallbacks = {
+		//onCreate: function(){}
+		//onDestroy: function(){}
+		 onPreUpdate: function(){}
+		,onPostUpdate: function(){}
+		,onVertexCollisionDetection: function(vertex, collisionEdge, collisionT){}
+		,onVertexCollisionResponse: function(vertex, velocity, collisionDepth){}
 	}
 }
 LinearConstraint.prototype.satisfy = function(){
@@ -364,7 +407,7 @@ LinearConstraint.prototype.computeNormal = function(){
 	vec3.normalize(this.normal);
 	return this;
 }
-LinearConstraint.prototype.computeBoundingCircle = function(){
+LinearConstraint.prototype.computeBoundingSphere = function(){
 	if(this.isFree === false) { return this; }
 	
 	// use bounding pos temporarily to avoid creating new array
@@ -376,10 +419,11 @@ LinearConstraint.prototype.computeBoundingCircle = function(){
 	return this;
 }
 LinearConstraint.prototype.update = function(dt){
+	this.eventCallbacks.onPreUpdate.call(this);
 	this.satisfy()
-		.computeBoundingCircle()
+		.computeBoundingSphere()
 		.computeNormal();
-	
+	this.eventCallbacks.onPostUpdate.call(this);
 	return this;
 }
 LinearConstraint.prototype.debugDrawNormal = function(ctx, offset){
@@ -476,7 +520,7 @@ Body.prototype.moveTo = function(vec){
 	for(var j = 0; j < this.clist.length; j++){
 		var c = this.clist[j];
 		c.isFree = true; // to avoid the early abort
-		c.computeBoundingCircle();
+		c.computeBoundingSphere();
 		c.isFree = false;
 	}
 	
@@ -497,7 +541,7 @@ Body.prototype.rotate = function(rads){
 	for(var j = 0; j < this.clist.length; j++){
 		var c = this.clist[j];
 		c.isFree = true; // to avoid the early abort
-		c.computeBoundingCircle();
+		c.computeBoundingSphere();
 		c.isFree = false;
 	}
 	return this;

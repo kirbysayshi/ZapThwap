@@ -41,6 +41,11 @@ Sprite.prototype.setOrientationMatrix = function(matrix4){
 	mat4.set(matrix4, this.orientation);
 	return this;
 }
+Sprite.prototype.setCurrentAnimation = function(name){
+	this.aticker = 0;
+	this.aframe = 0;
+	this.current = name;
+}
 
 //---------------------------------------------------------------------
 // DOMSprite < Sprite: bitmap animation using a DOM node (div)

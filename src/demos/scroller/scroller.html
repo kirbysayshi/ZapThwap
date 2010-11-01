@@ -19,7 +19,9 @@
 		<script type="text/javascript">
 var CanvasHero = function(){
 	
-	this.physicsObject = new THWAP.Entities.CircleBox(40);
+	this.boxW = 10;
+	
+	this.physicsObject = new THWAP.Entities.CircleBox(this.boxW);
 	this.spriteObject = new ZAP.Entities.Sprite();
 	this.spriteObject.setAnimations(
 	[
@@ -30,16 +32,23 @@ var CanvasHero = function(){
 	],
 	[
 		[	// stand_right
-			 { x: 4  , y: 7, w: 13, h: 22, d: 1000}
+			 { x: 4  , y: 7, w: 13, h: 22, o: 0, d: 1000}
 		]
 		,[	// stand_left
-			 { x: 3  , y: 34, w: 13, h: 22, d: 1000}
+			 { x: 3  , y: 34, w: 13, h: 22, o: 0, d: 1000}
 		]
-	//	,[	// run_right
-	//		 { x: 3  , y: 4, w: 62, h: 64, d: 1000}
-	//		,{ x: 70 , y: 4, w: 62, h: 64, d: 1000}
-	//		,{ x: 137, y: 4, w: 62, h: 64, d: 1000}
-	//	]
+		,[	// run_right
+			 { x: 5  , y: 62, w: 11, h: 22, o: -0, d: 500}
+			,{ x: 20 , y: 62, w: 12, h: 22, o: -6, d: 500}
+			,{ x: 37 , y: 62, w: 16, h: 22, o: -10, d: 500}
+			,{ x: 58 , y: 62, w: 18, h: 20, o: -9, d: 500}
+			,{ x: 81 , y: 62, w: 16, h: 22, o: -8, d: 500}
+			,{ x: 102, y: 62, w: 11, h: 22, o:  6, d: 500}
+			,{ x: 118, y: 62, w: 10, h: 22, o: -0, d: 500}
+			,{ x: 133, y: 62, w: 16, h: 22, o: -8, d: 500}
+			,{ x: 153, y: 62, w: 17, h: 22, o: -8, d: 500}
+			,{ x: 175, y: 62, w: 17, h: 22, o: -8, d: 500}
+		]
 	//	,[	// run_left
 	//		 { x: 3  , y: 4, w: 62, h: 64, d: 1000}
 	//		,{ x: 70 , y: 4, w: 62, h: 64, d: 1000}
@@ -52,10 +61,21 @@ var CanvasHero = function(){
 	
 	this.physicsObject.computeBoundingSphere();
 	
-	var dangly = new THWAP.Vertex( vec3.add(this.physicsObject.boundingPos, [0,40/2,0], vec3.create()) );
-	dangly.isCollidable = false;
-	dangly.imass = 1/5;
-	this.physicsObject.vlist.push( dangly );
+	//var danglyPos = vec3.scale(vec3.add(
+	//	this.physicsObject.vlist[2].cpos, 
+	//	this.physicsObject.vlist[3].cpos, 
+	//	[]), 0.5);
+	this.dangly = new THWAP.Vertex( vec3.add(this.physicsObject.boundingPos, [0,this.boxW,0], vec3.create()) );
+	//this.dangly = new THWAP.Vertex(danglyPos);
+	this.dangly.isCollidable = false;
+	//this.dangly.rad = this.boxW*0.5;
+	this.dangly.imass = 1/10;
+	this.physicsObject.vlist.push( this.dangly );
+	
+	//this.bubble = new THWAP.Vertex( this.physicsObject.boundingPos );
+	//this.bubble.rad = this.physicsObject.boundingRad;
+	//this.physicsObject.vlist.push( this.bubble );
+	
 	this.physicsObject.createConstraints(5);
 	//var leash1 = new THWAP.LinearConstraint(this.physicsObject.vlist[3], dangly, 5);
 	//var leash2 = new THWAP.LinearConstraint(this.physicsObject.vlist[2], dangly, 5);
@@ -64,7 +84,22 @@ var CanvasHero = function(){
 	//this.physicsObject.clist.push(leash1, leash2);
 	
 	this.physicsObject.clist.forEach(function(c){
-		c.collidable = false;
+		c.isCollidable = false;
+	});
+	
+	var self = this;
+	this.canJump = false;
+	//this.physicsObject.vlist[2]
+	//	.eventCallbacks.onConstraintCollisionDetection = setJump;
+	//this.physicsObject.vlist[3]
+	//	.eventCallbacks.onConstraintCollisionDetection = setJump;
+	
+	function setJump(){
+		self.canJump = true;
+	}
+	this.physicsObject.vlist.forEach(function(v){
+		v.eventCallbacks
+			.onConstraintCollisionDetection = setJump;
 	});
 }
 CanvasHero.prototype.draw = function(ctx, offset){
@@ -84,7 +119,7 @@ CanvasHero.prototype.draw = function(ctx, offset){
 	ctx.drawImage(this.sheet, 
 		curAFrame.x, curAFrame.y, 
 		curAFrame.w, curAFrame.h,
-		0 - (curAFrame.w/2), 0 - (curAFrame.h/2),
+		0 - (curAFrame.w/2) + curAFrame.o, 0 - (curAFrame.h/2) - this.boxW/2,
 		curAFrame.w, curAFrame.h);
 	ctx.restore();
 }
@@ -109,11 +144,11 @@ var  TWorld = new THWAP.World()
 	//,focus = new THWAP.Entities.SolidSphere(50)
 	//,focus = new THWAP.Entities.RectangleBody(15,15)
 	,bounds = new THWAP.Entities.BoundsBox([-2000,-200,0], [5500,600,0])
-	,ground = new THWAP.Entities.RectangleBody(5000, 200);
+	,ground = new THWAP.Entities.RectangleBody(5000, 20);
 
 console.log(focus);
 
-ground.moveTo([-200,500,0]);
+ground.moveTo([-200,550,0]);
 ground.vlist.forEach(function(v){
 	v.isFree = false;
 	//v.isCollidable = false;
@@ -141,8 +176,8 @@ TWorld
 KEY.listen(function(down){
 	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
 	
-	if(down[87].delta > 0 && down[87].delta < 100){ // W
-		focus.addAcceleration([0,-10000,0]);
+	if(down[87].delta > 0 && down[87].delta < 100 && hero.canJump === true){ // W
+		focus.addAcceleration([0,-40000,0]);
 	}
 	
 	if(down[83].delta > 0){ // S
@@ -151,10 +186,12 @@ KEY.listen(function(down){
 	
 	if(down[65].delta > 0){ // A
 		focus.addAcceleration([-1000,0,0]);
+		hero.spriteObject.setCurrentAnimation('run_left');
 	}
 	
 	if(down[68].delta > 0){ // D
 		focus.addAcceleration([1000,0,0]);
+		hero.spriteObject.setCurrentAnimation('run_right');
 	}
 });
 
@@ -163,9 +200,9 @@ ZAP.CGLM
 	.setMode('accuracy', 5);
 
 ZAP.CGLM.register(function priorityOne(dt){
-	KEY.dispatcher();
 	focus.addAcceleration([0,1000,0]);
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
+	KEY.dispatcher();	
 }, function priorityTwo(dt, fps, afps, lag, iterations){
 	ctx.clearRect(0,0,600,600);
 	var offset = ZAP.Scroller.getOffset(focus.boundingPos);
@@ -175,6 +212,7 @@ ZAP.CGLM.register(function priorityOne(dt){
 	hero.update(dt, ctx, offset);
 	//console.log(offset, focus.boundingPos);
 	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
+	hero.canJump = false;
 });
 
 ZAP.Scroller.set([600, 600, 0]);

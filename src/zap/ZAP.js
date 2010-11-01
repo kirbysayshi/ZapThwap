@@ -1,6 +1,8 @@
 (function(){
 
-// TODO: restructure angry to be a demo, instead of in root
+if(typeof(console) === 'undefined'){ 
+	console = { log: function(){} } 
+}
 
 var ZAP = {};
 ZAP.EPSILON = 0.001;
