@@ -200,7 +200,7 @@ function BoundsBox(tL, bR){
 		v.isFree = false;
 		v.rad = 20;
 		v.cfric = 0;
-		v.imass = 1/10;
+		v.imass = THWAP.EPSILON/3; // nearly infinite mass means unmoveable
 		this.vlist.push(v);
 		
 		// connect previous to new 

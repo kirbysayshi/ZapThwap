@@ -31,7 +31,7 @@ ZAP.CGLM = (function(){
 		,tCommands = function(){} // time-dependent callback
 		,nCommands = function(){}; // non-time-dependent callback
 	
-	self.basic = function(){
+	self.basic = function(tDT){
 		var counter = 0
 			,totalRuns = 0
 			,checkInterval = 20
@@ -50,9 +50,9 @@ ZAP.CGLM = (function(){
 				lastCheckTime = now;
 			}
 			
-			tCommands(targetInterval);
+			tCommands(tDT);
 			nCommands(
-				targetInterval
+				tDT
 				,currentFPS.toFixed(2)
 				,((now - lastCheckTime) / totalRuns).toFixed(2)
 				,targetInterval - lastCheckDelta
@@ -222,9 +222,10 @@ ZAP.Scroller = (function(){
 		,viewPort = vec3.create()
 		,halfPort = vec3.create();
 	
-	self.set = function(viewport, world){
+	self.set = function(viewport, scale, world){
 		viewPort = vec3.create(viewport);
 		halfPort = vec3.scale(viewPort, 0.5, halfPort);
+		halfPort = vec3.scale(halfPort, 1/scale);
 		if(world){
 			bounds = vec3.create(world);
 			bound = true;
@@ -247,7 +248,8 @@ ZAP.Scroller = (function(){
 	//	drawwOff = focusWPos - worldOff
 	//	someObj = objPos - worldOff
 	
-	self.getOffset = function(focusPos){
+	self.getOffset = function(focusPos, scale){
+		scale = scale || 0.5;
 		
 		var worldOff = vec3.subtract(focusPos, halfPort, vec3.create());
 		
@@ -263,7 +265,7 @@ ZAP.Scroller = (function(){
 			worldOff[2] = worldOff[2] > 0 ? Math.max(worldOff[2], bounds[2]) : Math.max(worldOff[2], 0);
 		}
 		
-		return worldOff;
+		return worldOff;//vec3.scale(worldOff, scale);
 	}
 
 	return self;

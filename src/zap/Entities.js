@@ -42,8 +42,10 @@ Sprite.prototype.setOrientationMatrix = function(matrix4){
 	return this;
 }
 Sprite.prototype.setCurrentAnimation = function(name){
-	this.aticker = 0;
-	this.aframe = 0;
+	if(name != this.current){
+		this.aticker = 0;
+		this.aframe = 0;
+	}
 	this.current = name;
 }
 

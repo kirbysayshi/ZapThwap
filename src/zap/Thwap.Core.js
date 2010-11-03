@@ -1,13 +1,10 @@
 (function(){	
 
-// TODO: collision callbacks. implement as CollisionTracker.query(), or
-// 		real callbacks? store all collision data: depth, involved bodies,
-// 		calculate force of collision?
 // TODO: add some sort of scaling to debug draw, since small values
 // 		for constraints cause explosions... maybe only in ZAP.Scroller? 
-// TODO: rename bounding circle to bounding sphere
 // TODO: add 'bounciness' factor for single-vertex bodies. perhaps just
 // 		override collision methods for single-vertex to have more bounce?
+// TODO: cleanup isFree vs imass. they should both technically be the same
 
 
 //---------------------------------------------------------------------
@@ -380,19 +377,12 @@ LinearConstraint.prototype.satisfy = function(){
 	
 		vec3.subtract(v2.cpos, v1.cpos, delta);
 		delta2 = vec3.dot(delta, delta);
-		// square root approximation
-		//var diffA = (this.restLength2 / (delta2 + this.restLength2) - 0.5) * -2;
-		//var diffB = (vec3.length(delta) - this.restLength) * 0.01;
+
 		diff = (vec3.length(delta) - this.restLength) / this.restLength;
-		//diff = (this.restLength2 / (delta2 + this.restLength2) - 0.5) * -2;
-		//console.log(diff, (Math.sqrt(delta2) - this.restLength), diff - (Math.sqrt(delta2) - this.restLength));
-		
-		//if(Math.abs(diff) > THWAP.EPSILON){
-			//console.log(diffA, diffB);
-			vec3.scale(delta, diff/this.imass);
-			vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
-			vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
-		//}
+
+		vec3.scale(delta, diff/this.imass);
+		vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
+		vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
 	}
 	return this;
 }
@@ -426,8 +416,7 @@ LinearConstraint.prototype.update = function(dt){
 	this.eventCallbacks.onPostUpdate.call(this);
 	return this;
 }
-LinearConstraint.prototype.debugDrawNormal = function(ctx, offset){
-	offset = offset || [0,0,0];
+LinearConstraint.prototype.debugDrawNormal = function(ctx, offset, scale){
 	ctx.save();
 	ctx.strokeStyle = "red";
 	ctx.lineWidth = 2;
@@ -439,8 +428,8 @@ LinearConstraint.prototype.debugDrawNormal = function(ctx, offset){
 		0
 	];
 	var normalEnd = vec3.add(vec3.scale(this.normal, this.restLength / 8, vec3.create()), midpoint);
-	ctx.moveTo(midpoint[0]  + offset[0], midpoint[1] + offset[1]);
-	ctx.lineTo(normalEnd[0] + offset[0], normalEnd[1] + offset[1]);
+	ctx.moveTo((midpoint[0]  + offset[0])*scale, (midpoint[1]  + offset[1])*scale);
+	ctx.lineTo((normalEnd[0] + offset[0])*scale, (normalEnd[1] + offset[1])*scale);
 	
 	ctx.stroke();
 	ctx.restore();
@@ -546,22 +535,6 @@ Body.prototype.rotate = function(rads){
 	}
 	return this;
 };
-//Body.prototype.update = function(dt){
-//	console.log("BODY UPDATE");
-//	for(var k = 0; k < this.solidity; k++){
-//		var  i = 0
-//			,j = 0;
-//		
-//		for(; i < this.vlist.length; i++){
-//			this.vlist[i].update(dt);
-//		}
-//	
-//		for(; j < this.clist.length; j++){
-//			this.clist[j].update(dt);
-//		}
-//	}
-//	return this;
-//}
 Body.prototype.addAcceleration = function(vec){
 	for(var i = 0; i < this.vlist.length; i++){
 		vec3.add(this.vlist[i].acel, vec);
@@ -681,19 +654,22 @@ Body.prototype.createConstraints = function(iterations){
 		}
 	}
 }
-Body.prototype.debugDraw = function(ctx, offset){	
+Body.prototype.debugDraw = function(ctx, offset, scale){	
 	offset = offset || [0,0,0];
+	scale = scale || 1;
 	ctx.save();
 	ctx.strokeStyle = 'rgba(142,142,142,0.5)';
 
+	// draw constraints and their normals
 	for(var i = 0; i < this.clist.length; i++){
 		var c = this.clist[i];
-		c.debugDrawNormal(ctx, offset);
+		c.debugDrawNormal(ctx, offset, scale);
 		ctx.beginPath();
-		ctx.moveTo(c.v1.cpos[0] + offset[0], c.v1.cpos[1] + offset[1]);
-		ctx.lineTo(c.v2.cpos[0] + offset[0], c.v2.cpos[1] + offset[1]);
+		ctx.moveTo( (c.v1.cpos[0] + offset[0])*scale, (c.v1.cpos[1] + offset[1])*scale );
+		ctx.lineTo( (c.v2.cpos[0] + offset[0])*scale, (c.v2.cpos[1] + offset[1])*scale );
 		ctx.stroke();
 		
+		// draw bounding sphere for each constraint
 		//ctx.save();
 		//ctx.strokeStyle = 'rgba(0,248,0,1)';
 		//ctx.fillStyle = 'rgba(0,248,0,0.2)';
@@ -703,19 +679,14 @@ Body.prototype.debugDraw = function(ctx, offset){
 		//	c.boundingPos[1] + offset[1], 
 		//	c.boundingRad, 0, Math.PI*2, false);
 		//ctx.stroke();
-		//ctx.beginPath();
-		//ctx.arc(
-		//	c.boundingPos[0] + offset[0], 
-		//	c.boundingPos[1] + offset[1], 
-		//	100, 0, Math.PI*2, false);
-		//ctx.fill();
 		//ctx.restore();
 	}
 	
+	// draw vertices 
 	for(var j = 0; j < this.vlist.length; j++){
 		ctx.beginPath();
 		var v = this.vlist[j];
-		ctx.arc(v.cpos[0] + offset[0], v.cpos[1] + offset[1], v.rad, 0, Math.PI*2, false);
+		ctx.arc( (v.cpos[0] + offset[0])*scale, (v.cpos[1] + offset[1])*scale, v.rad*scale, 0, Math.PI*2, false);
 		ctx.stroke();
 		
 		// draw vertex bounding box
@@ -728,8 +699,12 @@ Body.prototype.debugDraw = function(ctx, offset){
 		//);
 	}	
 	
+	// draw body bounding sphere
 	ctx.beginPath();
-	ctx.arc(this.boundingPos[0] + offset[0], this.boundingPos[1] + offset[1], this.boundingRad, 0, Math.PI*2, false);
+	ctx.arc(
+		 (this.boundingPos[0] + offset[0])*scale
+		,(this.boundingPos[1] + offset[1])*scale 
+		,(this.boundingRad)*scale, 0, Math.PI*2, false);
 	ctx.stroke();
 	
 	ctx.restore();

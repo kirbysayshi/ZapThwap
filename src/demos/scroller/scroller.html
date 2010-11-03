@@ -38,16 +38,16 @@ var CanvasHero = function(){
 			 { x: 3  , y: 34, w: 13, h: 22, o: 0, d: 1000}
 		]
 		,[	// run_right
-			 { x: 5  , y: 62, w: 11, h: 22, o: -0, d: 500}
-			,{ x: 20 , y: 62, w: 12, h: 22, o: -6, d: 500}
-			,{ x: 37 , y: 62, w: 16, h: 22, o: -10, d: 500}
-			,{ x: 58 , y: 62, w: 18, h: 20, o: -9, d: 500}
-			,{ x: 81 , y: 62, w: 16, h: 22, o: -8, d: 500}
-			,{ x: 102, y: 62, w: 11, h: 22, o:  6, d: 500}
-			,{ x: 118, y: 62, w: 10, h: 22, o: -0, d: 500}
-			,{ x: 133, y: 62, w: 16, h: 22, o: -8, d: 500}
-			,{ x: 153, y: 62, w: 17, h: 22, o: -8, d: 500}
-			,{ x: 175, y: 62, w: 17, h: 22, o: -8, d: 500}
+			 { x: 5  , y: 62, w: 11, h: 22, o:  0, d: 50}
+			,{ x: 20 , y: 62, w: 12, h: 22, o: -1, d: 50}
+			,{ x: 37 , y: 62, w: 16, h: 22, o: -3, d: 50}
+			,{ x: 58 , y: 62, w: 18, h: 22, o: -3, d: 50}
+			,{ x: 81 , y: 62, w: 16, h: 22, o: -3, d: 50}
+			,{ x: 102, y: 62, w: 11, h: 22, o: -0, d: 50}
+			,{ x: 118, y: 62, w: 10, h: 22, o: -1, d: 50}
+			,{ x: 133, y: 62, w: 16, h: 22, o: -3, d: 50}
+			,{ x: 153, y: 62, w: 17, h: 22, o: -2, d: 50}
+			,{ x: 175, y: 62, w: 17, h: 22, o: -3, d: 50}
 		]
 	//	,[	// run_left
 	//		 { x: 3  , y: 4, w: 62, h: 64, d: 1000}
@@ -102,33 +102,31 @@ var CanvasHero = function(){
 			.onConstraintCollisionDetection = setJump;
 	});
 }
-CanvasHero.prototype.draw = function(ctx, offset){
-	var  x = this.physicsObject.boundingPos[0]
-		,y = this.physicsObject.boundingPos[1]
-		,curAnimSeq = this.spriteObject.am[
-			this.spriteObject.al.indexOf(this.spriteObject.current)]
-		,curAFrame = curAnimSeq[ this.spriteObject.aframe ]
-		,destX = x+offset[0] - (curAFrame.w/2)
-		,destY = y+offset[1] - (curAFrame.h/2);
+CanvasHero.prototype.draw = function(ctx, offset, scale){
 	
-	// TODO: optimize these vars to not recompute
+	var  boundingPos = this.physicsObject.boundingPos
+		,curAnimSeq = this.spriteObject.am[
+			this.spriteObject.al.indexOf(this.spriteObject.current)
+		]
+		,curAFrame = curAnimSeq[ this.spriteObject.aframe ];
 	
 	ctx.save();
-	ctx.translate(x+offset[0], y+offset[1]);
+	ctx.translate((boundingPos[0]+offset[0])*scale, (boundingPos[1]+offset[1])*scale);
 	ctx.rotate(this.physicsObject.rotation);
 	ctx.drawImage(this.sheet, 
 		curAFrame.x, curAFrame.y, 
 		curAFrame.w, curAFrame.h,
-		0 - (curAFrame.w/2) + curAFrame.o, 0 - (curAFrame.h/2) - this.boxW/2,
-		curAFrame.w, curAFrame.h);
+		(Math.floor((0 - (curAFrame.w/2)) + (curAFrame.o)))*scale, 
+		(Math.floor((0 - (curAFrame.h/2)) - (this.boxW/2)))*scale,
+		curAFrame.w*scale, curAFrame.h*scale);
 	ctx.restore();
 }
-CanvasHero.prototype.update = function(dt, ctx, offset){
+CanvasHero.prototype.update = function(dt, ctx, offset, scale){
 	this.spriteObject
 		.updateAnimation(dt)
 		.setOrientationMatrix
 			(this.physicsObject.orientation);
-	this.draw(ctx, offset);
+	this.draw(ctx, offset,scale);
 }
 
 		
@@ -136,6 +134,7 @@ var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
+	,drawingScale = 1
 	,hero = new CanvasHero()
 	,focus = hero.physicsObject
 	//,focus = new THWAP.Entities.SingleVertexBody(50)
@@ -148,13 +147,19 @@ var  TWorld = new THWAP.World()
 
 console.log(focus);
 
+// turn off image smoothing
+ctx.mozImageSmoothingEnabled = false;
+
 ground.moveTo([-200,550,0]);
 ground.vlist.forEach(function(v){
 	v.isFree = false;
+	v.imass = THWAP.EPSILON/3; // near infinite means immoveable, and the constraints
 	//v.isCollidable = false;
 });
 ground.clist.forEach(function(c){
 	c.isFree = false;
+	c.imass = THWAP.EPSILON/3; // near infinite means immoveable
+	// thus the constraints will not be updated
 });
 
 focus.vlist.forEach(function(v){
@@ -166,7 +171,8 @@ focus.vlist.forEach(function(v){
 
 focus
 	.setPassiveFriction(0.01)
-	.setCollisionFriction(0.01);
+	.setCollisionFriction(0.01)
+	.moveTo([0,500,0]);
 
 TWorld
 	.addBody(ground)
@@ -186,7 +192,7 @@ KEY.listen(function(down){
 	
 	if(down[65].delta > 0){ // A
 		focus.addAcceleration([-1000,0,0]);
-		hero.spriteObject.setCurrentAnimation('run_left');
+		//hero.spriteObject.setCurrentAnimation('run_left');
 	}
 	
 	if(down[68].delta > 0){ // D
@@ -207,15 +213,15 @@ ZAP.CGLM.register(function priorityOne(dt){
 	ctx.clearRect(0,0,600,600);
 	var offset = ZAP.Scroller.getOffset(focus.boundingPos);
 	for(var i = 0; i < TWorld.blist.length; i++){
-		TWorld.blist[i].debugDraw(ctx, offset);
+		TWorld.blist[i].debugDraw(ctx, offset, drawingScale);
 	}
-	hero.update(dt, ctx, offset);
+	hero.update(dt, ctx, offset, drawingScale);
 	//console.log(offset, focus.boundingPos);
 	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
 	hero.canJump = false;
 });
 
-ZAP.Scroller.set([600, 600, 0]);
+ZAP.Scroller.set([600, 600, 0], drawingScale);
 
 ZAP.CGLM.start();
 		
