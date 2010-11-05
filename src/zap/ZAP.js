@@ -60,8 +60,6 @@ ZAP.CGLM = (function(){
 			);
 			
 			if(counter > checkInterval) counter = 0;
-			
-			if(running === true) timeOutRef = setTimeout(self.main, targetInterval);
 		}
 		
 		return run;
@@ -78,9 +76,9 @@ ZAP.CGLM = (function(){
 			var iStartTime = +new Date()
 				,delta = iStartTime - lastTime
 				,i = 0;
-			remainingDT = iterations = (delta/targetDT) + remainingDT;
+			remainingIT = iterations = (delta/targetDT) + remainingIT;
 			iterations = ~~iterations;
-			remainingDT = remainingDT - iterations;
+			remainingIT = remainingIT - iterations;
 
 			for(; i < iterations; i++){ tCommands(targetDT); }
 
@@ -107,7 +105,7 @@ ZAP.CGLM = (function(){
 			} else {
 
 			}
-			if(running === true) timeOutRef = setTimeout(self.main, targetInterval);
+			//if(running === false) timeOutRef = setInterval(self.main, targetInterval);
 		}
 		
 		return run;
@@ -150,7 +148,7 @@ ZAP.CGLM = (function(){
 				framesDrawn++;
 				lastFrameCount = currentFrameCount;
 			}
-			if(running === true) timeOutRef = setTimeout(self.main, targetInterval);
+			//if(running === false) timeOutRef = setInterval(self.main, targetInterval);
 		}
 		return run;
 	}
@@ -166,7 +164,7 @@ ZAP.CGLM = (function(){
 				self.main = self.syncronicity();
 				break;
 			case 'basic':
-				self.main = self.basic();
+				self.main = self.basic(tDT);
 				break;
 		}
 		return self;
@@ -178,12 +176,15 @@ ZAP.CGLM = (function(){
 	}
 	self.start = function(){ 
 		startTime = +new Date();
-		running = true; self.main(); 
+		timeOutRef = setInterval(self.main, targetInterval)
+		//self.main(); 
+		running = true; 
 		console.log("beginning execution"); 
 		return self;
 	}
 	self.stop = function(){ 
-		clearTimeout(timeOutRef); running = false;
+		clearInterval(timeOutRef);
+		running = false;
 		console.log("execution halted"); 
 		return self;
 	}

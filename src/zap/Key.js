@@ -22,11 +22,12 @@ var KEY = (function(W){
 	// This should be called every frame, 
 	// or however often events should be dispatched
 	self.dispatcher = function(){
+		var now = +new Date();
 		for(var i = 0; i < down.length; i++){
 			var e = down[i];
 			if(e !== false){
 				// update event held length
-				e.delta = +new Date() - e.start;
+				e.delta = now - e.start;
 			}
 		}
 		handler(down);

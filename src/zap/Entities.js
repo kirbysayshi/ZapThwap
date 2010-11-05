@@ -47,6 +47,7 @@ Sprite.prototype.setCurrentAnimation = function(name){
 		this.aframe = 0;
 	}
 	this.current = name;
+	return this;
 }
 
 //---------------------------------------------------------------------

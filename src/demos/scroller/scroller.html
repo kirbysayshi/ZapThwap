@@ -29,31 +29,60 @@ var CanvasHero = function(){
 		,'stand_left'
 		,'run_right'
 		,'run_left'
+		,'jump_right'
+		,'jump_left'
 	],
 	[
 		[	// stand_right
-			 { x: 4  , y: 7, w: 13, h: 22, o: 0, d: 1000}
+			 { x: 4  , y: 7, w: 13, h: 22, xo: 0, yo: 0, d: 1000}
 		]
 		,[	// stand_left
-			 { x: 3  , y: 34, w: 13, h: 22, o: 0, d: 1000}
+			 { x: 3  , y: 34, w: 13, h: 22, xo: 0, yo: 0, d: 1000}
 		]
 		,[	// run_right
-			 { x: 5  , y: 62, w: 11, h: 22, o:  0, d: 50}
-			,{ x: 20 , y: 62, w: 12, h: 22, o: -1, d: 50}
-			,{ x: 37 , y: 62, w: 16, h: 22, o: -3, d: 50}
-			,{ x: 58 , y: 62, w: 18, h: 22, o: -3, d: 50}
-			,{ x: 81 , y: 62, w: 16, h: 22, o: -3, d: 50}
-			,{ x: 102, y: 62, w: 11, h: 22, o: -0, d: 50}
-			,{ x: 118, y: 62, w: 10, h: 22, o: -1, d: 50}
-			,{ x: 133, y: 62, w: 16, h: 22, o: -3, d: 50}
-			,{ x: 153, y: 62, w: 17, h: 22, o: -2, d: 50}
-			,{ x: 175, y: 62, w: 17, h: 22, o: -3, d: 50}
+			 { x: 5  , y: 62, w: 11, h: 22, xo:  0, yo: 0, d: 50}
+			,{ x: 20 , y: 62, w: 12, h: 22, xo: -1, yo: 0, d: 50}
+			,{ x: 37 , y: 62, w: 16, h: 22, xo: -3, yo: 0, d: 50}
+			,{ x: 58 , y: 62, w: 18, h: 22, xo: -3, yo: 0, d: 50}
+			,{ x: 81 , y: 62, w: 16, h: 22, xo: -3, yo: 0, d: 50}
+			,{ x: 102, y: 62, w: 11, h: 22, xo:  0, yo: 0, d: 50}
+			,{ x: 118, y: 62, w: 10, h: 22, xo: -1, yo: 0, d: 50}
+			,{ x: 133, y: 62, w: 16, h: 22, xo: -3, yo: 0, d: 50}
+			,{ x: 153, y: 62, w: 17, h: 22, xo: -2, yo: 0, d: 50}
+			,{ x: 175, y: 62, w: 17, h: 22, xo: -3, yo: 0, d: 50}
 		]
-	//	,[	// run_left
-	//		 { x: 3  , y: 4, w: 62, h: 64, d: 1000}
-	//		,{ x: 70 , y: 4, w: 62, h: 64, d: 1000}
-	//		,{ x: 137, y: 4, w: 62, h: 64, d: 1000}
-	//	]
+		,[	// run_left
+			 { x: 5  , y: 89, w: 11, h: 22, xo:  0, yo: 0, d: 50}
+			,{ x: 20 , y: 89, w: 12, h: 22, xo: -1, yo: 0, d: 50}
+			,{ x: 37 , y: 89, w: 16, h: 22, xo:  0, yo: 0, d: 50}
+			,{ x: 58 , y: 89, w: 18, h: 22, xo:  1, yo: 0, d: 50}
+			,{ x: 81 , y: 89, w: 16, h: 22, xo:  0, yo: 0, d: 50}
+			,{ x: 102, y: 89, w: 11, h: 22, xo: -1, yo: 0, d: 50}
+			,{ x: 118, y: 89, w: 10, h: 22, xo: -2, yo: 0, d: 50}
+			,{ x: 133, y: 89, w: 16, h: 22, xo:  0, yo: 0, d: 50}
+			,{ x: 153, y: 89, w: 17, h: 22, xo: -1, yo: 0, d: 50}
+			,{ x: 175, y: 89, w: 17, h: 22, xo:  1, yo: 0, d: 50}
+		]
+		,[ // jump right
+			 { x: 5  , y: 283, w: 10, h: 17, xo:  0, yo: 0, d: 50}
+			,{ x: 20 , y: 283, w: 11, h: 16, xo:  0, yo: 0, d: 50}
+			,{ x: 36 , y: 283, w: 17, h: 13, xo:  0, yo: 0, d: 50}
+			,{ x: 58 , y: 283, w: 16, h: 14, xo:  0, yo: 0, d: 50}
+			,{ x: 79 , y: 283, w: 10, h: 17, xo:  0, yo: 0, d: 50}
+			,{ x: 94 , y: 283, w: 11, h: 16, xo:  0, yo: 0, d: 50}
+			,{ x: 110, y: 283, w: 17, h: 13, xo:  0, yo: 0, d: 50}
+			,{ x: 132, y: 283, w: 14, h: 14, xo:  0, yo: 0, d: 50}
+		]
+		,[ // jump left
+			 { x: 5  , y: 305, w: 10, h: 17, xo:  0, yo: 0, d: 50}
+			,{ x: 20 , y: 305, w: 11, h: 16, xo:  0, yo: 0, d: 50}
+			,{ x: 36 , y: 305, w: 17, h: 13, xo:  0, yo: 0, d: 50}
+			,{ x: 58 , y: 305, w: 16, h: 14, xo:  0, yo: 0, d: 50}
+			,{ x: 79 , y: 305, w: 10, h: 17, xo:  0, yo: 0, d: 50}
+			,{ x: 94 , y: 305, w: 11, h: 16, xo:  0, yo: 0, d: 50}
+			,{ x: 110, y: 305, w: 17, h: 13, xo:  0, yo: 0, d: 50}
+			,{ x: 132, y: 305, w: 14, h: 14, xo:  0, yo: 0, d: 50}
+		]
 	]);
 
 	this.sheet = new Image();
@@ -116,8 +145,8 @@ CanvasHero.prototype.draw = function(ctx, offset, scale){
 	ctx.drawImage(this.sheet, 
 		curAFrame.x, curAFrame.y, 
 		curAFrame.w, curAFrame.h,
-		(Math.floor((0 - (curAFrame.w/2)) + (curAFrame.o)))*scale, 
-		(Math.floor((0 - (curAFrame.h/2)) - (this.boxW/2)))*scale,
+		(Math.floor((0 - (curAFrame.w/2)) + (curAFrame.xo)))*scale, 
+		(Math.floor((0 - (curAFrame.h/2)) + (curAFrame.yo)))*scale,
 		curAFrame.w*scale, curAFrame.h*scale);
 	ctx.restore();
 }
@@ -190,15 +219,36 @@ KEY.listen(function(down){
 		focus.addAcceleration([0,1000,0]);
 	}
 	
-	if(down[65].delta > 0){ // A
+	if(down[65].delta > 0 && hero.canJump === true){ // A
 		focus.addAcceleration([-1000,0,0]);
-		//hero.spriteObject.setCurrentAnimation('run_left');
+		hero.spriteObject.setCurrentAnimation('run_left')
+			.direction = 'left';
 	}
 	
-	if(down[68].delta > 0){ // D
+	if(down[68].delta > 0 && hero.canJump === true){ // D
 		focus.addAcceleration([1000,0,0]);
-		hero.spriteObject.setCurrentAnimation('run_right');
+		hero.spriteObject.setCurrentAnimation('run_right')
+			.direction = 'right';
 	}
+	
+	if(down[65].delta > 0 && hero.canJump === false){ // A
+		focus.addAcceleration([-400,0,0]);
+		hero.spriteObject.direction = 'left';
+	}
+	
+	if(down[68].delta > 0 && hero.canJump === false){ // D
+		focus.addAcceleration([400,0,0]);
+		hero.spriteObject.direction = 'right';
+	}
+	
+	if(down[68] === false && down[65] === false && hero.canJump === true){
+		hero.spriteObject.setCurrentAnimation('stand_' + hero.spriteObject.direction);
+	}
+	
+	if(hero.canJump === false){ // W
+		hero.spriteObject.setCurrentAnimation('jump_' + hero.spriteObject.direction);
+	}
+	
 });
 
 ZAP.CGLM

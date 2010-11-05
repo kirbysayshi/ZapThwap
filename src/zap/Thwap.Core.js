@@ -1,11 +1,11 @@
 (function(){	
 
-// TODO: add some sort of scaling to debug draw, since small values
-// 		for constraints cause explosions... maybe only in ZAP.Scroller? 
 // TODO: add 'bounciness' factor for single-vertex bodies. perhaps just
 // 		override collision methods for single-vertex to have more bounce?
 // TODO: cleanup isFree vs imass. they should both technically be the same
-
+// TODO: possibly compute constraint "forces" first, and THEN satisfy constraints
+//		to avoid introducing more energy into the system? Adding force vs moving
+//		cpos is unknown
 
 //---------------------------------------------------------------------
 // ThwapWorld
