@@ -74,32 +74,20 @@ World.prototype.step = function(dt){
 		c--;
 	}
 
-	// update body orientations, bounding spheres...
+	// update body orientations, bounding spheres, collide all bodies
 	while(b >= 0){
-		this.blist[b]
+		var body = this.blist[b]
 			.computeOrientationMatrix()
 			.computeBoundingSphere();
-		b--;
-	}
-
-	// collide everything
-	b = this.blist.length-1;
-	while(b >= 0){
-		for(var i = 0; i < o; i++){
-			this.blist[b].collideWithBody(this.blist[i]);
+			
+		for(var i = b - 1; i >= 0; i--){
+			body.collideWithBody(this.blist[i]);
 		}
-		b--;
-	}
-	
-	// reset collisions
-	b = this.blist.length-1;
-	while(b >= 0){
-		this.blist[b].resetCollisionCaches();
+		
 		b--;
 	}
 	
 	this.lastdt = dt;
-	
 	return this;
 }
 
@@ -472,9 +460,6 @@ function Body(){
 	this.boundingPos = vec3.create([0,0,0]);
 	this.boundingRad = 0;
 	//this.dirty = true; // let's optimize later
-	
-	this.hasCollidedVsWith = []; // reset after each step
-	this.hasCollidedCsWith = [];
 }
 Body.prototype.computeOrientationMatrix = function(){
 	//if(this.dirty === false) return this.orientation;
@@ -603,38 +588,27 @@ Body.prototype.collideWithBody = function(body){
 		,bvl = body.vlist.length
 		,bcl = body.clist.length;
 
-	// collide all vertices - vertices ONCE
-	if(this.hasCollidedVsWith.indexOf(body) === -1){
-		this.hasCollidedVsWith.push(body);
-		
-		for(v = 0; v < vl; v++){
-			for(bv = 0; bv < bvl; bv++){
-				this.vlist[v].collideVertex( body.vlist[bv] );
-			}
+	// collide all this vertices - body vertices
+	for(v = 0; v < vl; v++){
+		for(bv = 0; bv < bvl; bv++){
+			this.vlist[v].collideVertex( body.vlist[bv] );
 		}
 	}
-	
+
 	// collide all this constraints - body vertices
-	if(this.hasCollidedCsWith.indexOf(body) === -1){
-		this.hasCollidedCsWith.push(body);
-		
-		for(c = 0; c < cl; c++){
-			for(bv = 0; bv < bvl; bv++){
-				body.vlist[bv].collideConstraint( this.clist[c] );
-			}
+	for(c = 0; c < cl; c++){
+		for(bv = 0; bv < bvl; bv++){
+			body.vlist[bv].collideConstraint( this.clist[c] );
 		}
 	}
 
 	// collide all body constraints - this vertices
-	if(body.hasCollidedCsWith.indexOf(this) === -1){
-		body.hasCollidedCsWith.push(this);
-		
-		for(bc = 0; bc < bcl; bc++){
-			for(v = 0; v < vl; v++){
-				this.vlist[v].collideConstraint( body.clist[bc] );
-			}
+	for(bc = 0; bc < bcl; bc++){
+		for(v = 0; v < vl; v++){
+			this.vlist[v].collideConstraint( body.clist[bc] );
 		}
 	}
+
 	return this;
 }
 Body.prototype.resetCollisionCaches = function(){
