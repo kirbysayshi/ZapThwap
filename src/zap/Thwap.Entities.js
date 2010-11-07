@@ -9,6 +9,7 @@ var ENT = window.THWAP.Entities = {};
 function SingleVertexBody(rad){
 	THWAP.Body.call(this);
 	var v = new THWAP.Vertex([0,0,0]);
+	v.rad = rad;
 	this.vlist.push(v);
 	this.regA = this.regB = v; // there's only one!
 }

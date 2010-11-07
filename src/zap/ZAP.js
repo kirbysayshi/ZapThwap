@@ -67,7 +67,7 @@ ZAP.CGLM = (function(){
 	
 	self.accuracy = function(tDT){
 		var  targetDT = tDT || 5 // ms
-			,remainingDT = 0
+			,remainingIT = 0
 		 	,totalIterations = 0
 			,iterations = 0
 			,lastTime = +new Date();

@@ -6,6 +6,9 @@
 // TODO: possibly compute constraint "forces" first, and THEN satisfy constraints
 //		to avoid introducing more energy into the system? Adding force vs moving
 //		cpos is unknown
+// TODO: allow vertices to be collidable but not have collision response implemented
+//		so collision could be detected with a callback, but not auto-responded to
+// TODO: Thwap.Instrumentation
 
 //---------------------------------------------------------------------
 // ThwapWorld
@@ -20,12 +23,14 @@ function World(){
 World.prototype.addVertex = function(v){
 	if(this.vlist.indexOf(v) === -1){
 		this.vlist.push(v);
+		THWAP.Instrumentation.library.maxVertices++;
 	}
 	return this;
 }
 World.prototype.addConstraint = function(c){
 	if(this.clist.indexOf(c) === -1){
 		this.clist.push(c);
+		THWAP.Instrumentation.library.maxConstraints++;
 	}
 	
 	this.addVertex(c.v1);
@@ -35,6 +40,7 @@ World.prototype.addConstraint = function(c){
 World.prototype.addBody = function(b){
 	if(this.blist.indexOf(b) === -1){
 		this.blist.push(b);
+		THWAP.Instrumentation.library.maxBodies++;
 	}
 	
 	for(var i = 0; i < b.clist.length; i++){
@@ -52,6 +58,9 @@ World.prototype.step = function(dt){
 		,c = this.clist.length-1
 		,b = this.blist.length-1
 		,o = this.blist.length;
+	
+	// archive previous instrumentation data
+	THWAP.Instrumentation.archiveThisStep();
 	
 	// update verticies
 	while(v >= 0){
@@ -125,6 +134,9 @@ Vertex.prototype.collideConstraint = function(c){
 		|| this == c.v1 || this == c.v2
 		//|| this.isFree === false
 		) return this;
+	
+	// INSTRUMENTATION
+	THWAP.Instrumentation.log('VCCollisionTests', [this, c]);
 	
 	//---------------------------------------------------------------------
 	// Attempt to discard quickly
@@ -208,12 +220,16 @@ Vertex.prototype.collideConstraint = function(c){
 	this.eventCallbacks.onConstraintCollisionResponse.call(this, c, velocity, collisionDepth);
 	c.eventCallbacks.onVertexCollisionResponse.call(c, this, velocity, collisionDepth);
 	
+	// INSTRUMENTATION
+	THWAP.Instrumentation.log('VCCollisionResponses', [this, c]);
+	
 	return this;
 }
 Vertex.prototype.collideVertex = function(vert){
 	if(this.isCollidable === false || vert.isCollidable === false) return;
 	
-	// TODO: make this make constraint collisions not explode?
+	// INSTRUMENTATION
+	THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
 	
 	var diff = vec3.subtract(this.cpos, vert.cpos, vec3.create())
 		,comboRad = this.rad + vert.rad
@@ -269,6 +285,9 @@ Vertex.prototype.collideVertex = function(vert){
 	this.eventCallbacks.onVertexCollisionResponse.call(this, vert, velColl);
 	vert.eventCallbacks.onVertexCollisionResponse.call(vert, this, velColl);
 	
+	// INSTRUMENTATION
+	THWAP.Instrumentation.log('VVCollisionResponses', [this, vert]);
+	
 	return this;
 }
 Vertex.prototype.update = function(dt, ldt){	
@@ -299,6 +318,9 @@ Vertex.prototype.update = function(dt, ldt){
 	
 	// post-update event!
 	s.eventCallbacks.onPostUpdate.call(this);
+	
+	// INSTRUMENTATION
+	THWAP.Instrumentation.log('VUpdates', this);
 	
 	return this;
 }
@@ -414,6 +436,8 @@ LinearConstraint.prototype.update = function(dt){
 		.computeBoundingSphere()
 		.computeNormal();
 	this.eventCallbacks.onPostUpdate.call(this);
+	// INSTRUMENTATION
+	THWAP.Instrumentation.log('CUpdates', this);
 	return this;
 }
 LinearConstraint.prototype.debugDrawNormal = function(ctx, offset, scale){
@@ -710,6 +734,57 @@ Body.prototype.debugDraw = function(ctx, offset, scale){
 	ctx.restore();
 }
 
+var Instrumentation = {
+	sample: true
+	,thisStep: {
+		 VVCollisionTests: []
+		,VCCollisionTests: []
+		,VVCollisionResponses: []
+		,VCCollisionResponses: []
+		,VUpdates: []
+		,CUpdates: []
+	}
+	,library: {
+		 maxVertices: 0
+		,maxConstraints: 0
+		,maxBodies: 0
+		
+		,totalVVCollisionTests: 0
+		,totalVCCollisionTests: 0
+		,totalVVCollisionResponses: 0
+		,totalVCCollisionResponses: 0
+		,totalVUpdates: 0
+		,totalCUpdates: 0
+		,totalTimeSteps: 0
+	}
+	
+	,log: function(prop, data){
+		if(this.sample === true){
+			this.thisStep[prop].push(data);
+		}
+	}
+	,totalResetOfTheSun: function(){
+		for(var i in this.thisStep){
+			this.thisStep[i].length = 0;
+		}
+		
+		for(var j in this.library){
+			this.library[j] = 0;
+		}
+	}
+	,archiveThisStep: function(){
+		if(this.sample === true){
+			for(var i in this.thisStep){
+				this.library['total' + i] += this.thisStep[i].length;
+				this.thisStep[i].length = 0;
+			}	
+			this.library.totalTimeSteps++;
+		}
+	}
+	,query: function(){}
+};
+
+
 //---------------------------------------------------------------------
 // Export
 //---------------------------------------------------------------------
@@ -719,5 +794,6 @@ window.THWAP = {
 	,LinearConstraint: LinearConstraint
 	,Body: Body
 	,World: World
+	,Instrumentation: Instrumentation
 };
 })();

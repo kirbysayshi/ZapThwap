@@ -209,7 +209,10 @@ TWorld
 	.addBody(bounds);
 
 KEY.listen(function(down){
-	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
+	if(down[27].delta > 0){ 
+		ZAP.CGLM.stop();
+		console.log(THWAP.Instrumentation.library);
+	}
 	
 	if(down[87].delta > 0 && down[87].delta < 100 && hero.canJump === true){ // W
 		focus.addAcceleration([0,-40000,0]);
@@ -251,6 +254,29 @@ KEY.listen(function(down){
 	
 });
 
+// handle clicks
+$cWorld.bind('click', function(e){
+	var offset = ZAP.Scroller.getOffset(focus.boundingPos);
+	var pos = [e.pageX - this.offsetLeft, e.pageY - this.offsetTop, 0];
+	var worldCoords = vec3.scale(vec3.subtract(offset, pos, vec3.create()), -1);
+	console.log( offset, pos, worldCoords );
+	
+	var bulletRad = 1;
+	var ray = vec3.subtract(worldCoords, focus.boundingPos, vec3.create());
+	vec3.normalize(ray);
+	var projectileOrigin = vec3.scale(ray, focus.boundingRad + bulletRad, vec3.create());
+	
+	var b = new THWAP.Entities.SingleVertexBody(bulletRad);
+	b
+		.moveTo( vec3.add(focus.boundingPos, projectileOrigin, vec3.create()) )
+		.setPassiveFriction(0)
+		.setCollisionFriction(0)
+		.addAcceleration( vec3.scale(ray, 100000) );
+	
+	TWorld.addBody(b);
+	
+});
+
 ZAP.CGLM
 	.setFPS(100)
 	.setMode('accuracy', 5);
@@ -258,7 +284,7 @@ ZAP.CGLM
 ZAP.CGLM.register(function priorityOne(dt){
 	focus.addAcceleration([0,1000,0]);
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
-	KEY.dispatcher();	
+	KEY.dispatcher();
 }, function priorityTwo(dt, fps, afps, lag, iterations){
 	ctx.clearRect(0,0,600,600);
 	var offset = ZAP.Scroller.getOffset(focus.boundingPos);
@@ -267,7 +293,16 @@ ZAP.CGLM.register(function priorityOne(dt){
 	}
 	hero.update(dt, ctx, offset, drawingScale);
 	//console.log(offset, focus.boundingPos);
-	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
+	var instr = THWAP.Instrumentation.thisStep;
+	var instrS = '';
+	for(var p in instr){
+		instrS += "<br />" + p + ": " + instr[p].length;
+	}
+	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps 
+		+ " LAG: " + lag + " ITERATIONS: " + iterations + "<br />"
+		+ "VCOUNT: " + TWorld.vlist.length + " CCOUNT: " + TWorld.clist.length + " BCOUNT: " + TWorld.blist.length
+		+ instrS;
+	//console.log(THWAP.Instrumentation.thisStep);
 	hero.canJump = false;
 });
 
