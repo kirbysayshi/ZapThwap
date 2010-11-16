@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>ZAP - Survive Demo</title>
+	</head>
+	<body>
+		<canvas id="cvsWorld" width="600" height="600" style="background-color: black;"></canvas>
+		<div id="info"></div>
+		<script type="text/javascript" src="../../lib/glMatrix.js"></script>
+		<script type="text/javascript" src="../../lib/jquery-1.4.2.min.js"></script>
+		
+		<script src="../../zap/Thwap.Core.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Thwap.Entities.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Key.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Math.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+var  TWorld = new THWAP.World()
+	,$cWorld = $("#cvsWorld")
+	,info = $("#info")[0]
+	,ctx = $cWorld[0].getContext('2d')
+	,numZombies = 0
+	,maxZombies = 30
+	,zombieSize = 5
+	,zombieSpeed = 5000
+	,spawnInterval = 300
+	,timerRef = 0
+	,rampSlope = 300
+	,flesh = vec3.create([$cWorld[0].width / 2, 50, 0])
+	,start = vec3.create([$cWorld[0].width / 2, $cWorld[0].height - 10, 0])
+	,left = (function(){
+		var b = new THWAP.Body();
+		var corners = [
+			[0,0,0],
+			[($cWorld[0].width/2)-(3*zombieSize),0,0],
+			[($cWorld[0].width/2)-(3*zombieSize),3*zombieSize,0],
+			[0,rampSlope,0]	
+		];
+		
+		var last;
+		corners.forEach(function(c){
+			var v = new THWAP.Vertex(c),
+				constraint;
+			v.isFree = false;
+			v.rad = 1;
+			b.vlist.push(v);
+			
+			if(last != undefined){
+				constraint = new THWAP.LinearConstraint(last, v, 1);
+				b.clist.push(constraint);
+				last = v;
+			}
+			last = v;
+		});
+		
+		b.clist.push(new THWAP.LinearConstraint(last, b.vlist[0], 1));
+		b.regA = b.vlist[0];
+		b.regB = b.vlist[1];
+		return b;
+	})()
+	,right = (function(){
+		var b = new THWAP.Body();
+		var corners = [
+			[0,0,0],
+			[($cWorld[0].width/2)-(3*zombieSize),0,0],
+			[($cWorld[0].width/2)-(3*zombieSize),rampSlope,0],
+			[0,3*zombieSize,0]
+		];
+		
+		var last;
+		corners.forEach(function(c){
+			var v = new THWAP.Vertex(c),
+				constraint;
+			v.isFree = false;
+			v.rad = 1;
+			b.vlist.push(v);
+			
+			if(last != undefined){
+				constraint = new THWAP.LinearConstraint(last, v, 1);
+				b.clist.push(constraint);
+				last = v;
+			}
+			last = v;
+		});
+		
+		b.clist.push(new THWAP.LinearConstraint(last, b.vlist[0], 1));
+		b.regA = b.vlist[0];
+		b.regB = b.vlist[1];
+		return b;
+	})();	
+
+//TWorld
+//	.addBody(left)
+//	.addBody(right);
+//
+left.moveTo([0,$cWorld[0].height - 100,0]);
+right.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0]);
+
+timerRef = setInterval(function(){
+	if(numZombies >= maxZombies) { clearInterval(timerRef); return; }
+	
+	var  rand = Math.random()
+		,pos = vec3.create()
+		//,p = new THWAP.Entities.CircleBox(10);
+		,p = new THWAP.Entities.SingleVertexBody(zombieSize);
+	
+	if(rand > 0.5){ rand *= -1; }
+	
+	vec3.add(start, [rand*200, 200, 0], pos);
+	
+	p.moveTo(pos)
+		.setPassiveFriction(0)
+		.setCollisionFriction(0)
+		.clist.forEach(function(c){
+			c.isCollidable = false;
+		});
+	
+	TWorld.addBody(p);
+	numZombies++;
+},spawnInterval);
+	
+
+//var bounds = new THWAP.Entities.BoundsBox([10,10,0], [590,590,0]);
+//TWorld.addBody(bounds);
+
+KEY.listen(function(down){
+	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
+});
+
+ZAP.CGLM
+	.setFPS(100)
+	.setMode('accuracy', 10);
+
+ZAP.CGLM.register(function priorityOne(dt){
+	var i = 0, b, distance, dir = vec3.create();
+	
+	KEY.dispatcher();
+	
+	for(i = 0; i < TWorld.blist.length; i++){
+		b = TWorld.blist[i];
+		distance = vec3.length(vec3.subtract(flesh, b.boundingPos, vec3.create()));
+		vec3.direction(flesh, b.boundingPos, dir);
+		b.addAcceleration( vec3.scale(dir, zombieSpeed/distance*100) );
+	}
+	
+	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
+}, function priorityTwo(dt, fps, afps, lag, iterations){
+	ctx.clearRect(0,0,600,600);
+	for(var i = 0; i < TWorld.blist.length; i++){
+		TWorld.blist[i].debugDraw(ctx, false, 0.7);
+	}
+	//console.log(TWorld.blist);
+	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
+});
+
+ZAP.CGLM.start();
+
+		</script>
+	</body>
+</html>

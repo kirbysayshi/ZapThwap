@@ -35,6 +35,7 @@ var ANGRY = {};
 		.setCollisionFriction(1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
+			c.iterations = 1;
 		});
 	
 	box2.physicsObject

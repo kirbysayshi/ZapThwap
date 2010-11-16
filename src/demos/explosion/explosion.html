@@ -19,13 +19,13 @@ var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
-	,numParticles = 50;	
+	,numParticles = 90;	
 
 var middle = [ $cWorld[0].width / 2, $cWorld[0].height / 2, 0 ];	
 for(var i = 0; i < numParticles; i++){
 	var  pos = vec3.add(middle, [Math.random()*100, Math.random()*100, 0], vec3.create())
 		//,p = new THWAP.Entities.CircleBox(10);
-		,p = new THWAP.Entities.SingleVertexBody(30);
+		,p = new THWAP.Entities.SingleVertexBody(5);
 	
 	p.moveTo(pos)
 		.setPassiveFriction(0.001)

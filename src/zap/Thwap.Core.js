@@ -216,21 +216,20 @@ Vertex.prototype.collideConstraint = function(c){
 Vertex.prototype.collideVertex = function(vert){
 	if(this.isCollidable === false || vert.isCollidable === false) return;
 	
+	// TODO: cache all indexed vars
+	// TODO: swap out with ov3 for just this method
+	
 	// INSTRUMENTATION
 	THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
 	
 	var diff = vec3.subtract(this.cpos, vert.cpos, vec3.create())
+		,diffLength = vec3.length(diff)
 		,comboRad = this.rad + vert.rad
-		,diff2 = vec3.dot(diff, diff)
-		,comboRad2 = comboRad*comboRad;
-	
+		
 	// early out, too far apart
-	if(diff2 > comboRad2){
-		return false;
-	}
+	if(diffLength > comboRad) return false;
 	
-	var diffLength = Math.sqrt(diff2)
-		,depth = comboRad - diffLength
+	var  depth = comboRad - diffLength
 		,comboInvMass = this.imass + vert.imass;
 	
 	// collision detection callbacks
@@ -429,6 +428,8 @@ LinearConstraint.prototype.update = function(dt){
 	return this;
 }
 LinearConstraint.prototype.debugDrawNormal = function(ctx, offset, scale){
+	offset = offset || [0,0,0];
+	scale = scale || 1;
 	ctx.save();
 	ctx.strokeStyle = "red";
 	ctx.lineWidth = 2;
@@ -758,6 +759,204 @@ var Instrumentation = {
 	,query: function(){}
 };
 
+// detects 2d collisions
+var PositronCollider = {
+	circleVsCircle: function(posA, radA, posB, radB, callback){
+		
+		var  bToA = vec3.subtract(posA, posB, vec3.create())
+			,distance = vec3.length(bToA)
+			,comboRad = radA + radB
+			,depth = comboRad - distance;
+
+		if(distance > comboRad){
+			return false;
+		} else {
+			callback(depth, bToA, distance);
+			return true;
+		}
+		
+	}
+	,circleVsBoundingBox: function(){}
+	,vertexVsVertex: function(vertexA, vertexB, handler){
+		if(vertexA.isCollidable === false || vertexB.isCollidable === false) return;
+
+		// INSTRUMENTATION
+		THWAP.Instrumentation.log('VVCollisionTests', [vertexA, vertexB]);
+
+		this.circleVsCircle(vertexA.cpos, vertexA.rad, vertexB.cpos, vertexB.rad, 
+			function(depth, bToA, distance){
+				handler(vertexA, vertexB, depth, bToA, distance);
+			});
+		
+	}
+	,vertexVsConstraint: function(vertex, constraint, handler){
+		if(vertex.isCollidable === false || constraint.isCollidable === false
+			|| vertex == constraint.v1 || vertex == constraint.v2
+			) return this;
+
+		var diff = vec3.subtract(vertex.cpos, constraint.boundingPos, vec3.create())
+			,comboRad = vertex.rad + constraint.boundingRad
+			,diff2 = vec3.dot(diff, diff)
+			,comboRad2 = comboRad*comboRad
+			
+			,edgeRay, edgeLength, e, a, eDotE, sqArg, t, collisionDepth;
+
+		// INSTRUMENTATION
+		THWAP.Instrumentation.log('VCCollisionTests', [vertex, constraint]);
+
+		// early out, too far apart
+		if(diff2 > comboRad2){
+			return vertex;
+		}
+		
+		edgeRay = vec3.subtract(constraint.v2.cpos, constraint.v1.cpos, vec3.create());
+		edgeLength = vec3.length(edgeRay);
+
+		// normalize edgeRay
+		vec3.scale(edgeRay, 1/edgeLength);
+
+		// e == segment from vertex to start point of ray (edge), or v1
+		// a == length of projection of e onto the edgeRay
+		e = vec3.create();
+		vec3.subtract(vertex.cpos, constraint.v1.cpos, e)
+		a = vec3.dot(e, edgeRay);
+
+		if(a < 0) { return false; } // edge points away from vertex
+		eDotE = vec3.dot(e, e);
+		sqArg = (vertex.rad*vertex.rad) - eDotE + (a*a);
+		if(sqArg < 0){ return false; } // no intersection
+		t = a - Math.sqrt( sqArg );
+		if(t < 0 || t > edgeLength) { return false; } // intersection point not within segment
+		
+		collisionDepth = vertex.rad - Math.sqrt(eDotE - a*a);
+		
+		handler();
+		
+	}
+	,vertexVsBody: function(){}
+	,bodyVsBody: function(bodyA, bodyB, callback){
+		if(bodyA == bodyB){ return false; }
+
+		var va = 0, ca = 0, vb = 0, cb = 0
+			,bodyA_vlist_length = bodyA.vlist.length
+			,bodyA_clist_length = bodyA.clist.length
+			,bodyB_vlist_length = bodyB.vlist.length
+			,bodyB_clist_length = bodyB.clist.length;
+
+		// collide all A vertices - B vertices
+		for(va = 0; va < bodyA_vlist_length; va++){
+			for(vb = 0; vb < bodyB_vlist_length; vb++){
+				bodyA.vlist[va].collideVertex( bodyB.vlist[vb] );
+			}
+		}
+
+		// collide all A constraints - B vertices
+		for(ca = 0; ca < bodyA_clist_length; ca++){
+			for(vb = 0; vb < bodyB_vlist_length; vb++){
+				bodyB.vlist[bv].collideConstraint( bodyA.clist[ca] );
+			}
+		}
+
+		// collide all B constraints - A vertices
+		for(cb = 0; cb < bodyB_clist_length; cb++){
+			for(va = 0; va < bodyA_vlist_length; va++){
+				bodyA.vlist[va].collideConstraint( bodyB.clist[cb] );
+			}
+		}
+	}
+};
+
+// responds to collisions
+var CollisionResolver = {
+	vertexVsVertex: function(vertexA, vertexB, depth, bToA, distance, callback){
+		// normalize bToA
+		if(distance !== 0){ // verticies on top of each other
+			bToA[0] /= distance;
+			bToA[1] /= distance;
+			bToA[2] /= distance;
+		}
+
+		// velocity diff, velocity along normal, and velocity along collision plane
+		var  vertexAVel = vec3.subtract(vertexA.cpos, vertexA.ppos, vec3.create())
+			,vertexBVel = vec3.subtract(vertexB.cpos, vertexB.ppos, vec3.create())
+			,velDiff = vec3.subtract(vertexAVel, vertexBVel, vec3.create())
+			,velNorm = vec3.scale(diff, vec3.dot(velDiff, bToA), vec3.create())
+			,velColl = vec3.subtract(velDiff, velNorm, vec3.create());
+
+		// friction / damping
+		velColl[0] /= comboInvMass;
+		velColl[1] /= comboInvMass;
+		velColl[2] /= comboInvMass;
+
+		if(vertexA.isFree === true) {
+			// move particle from plane
+			vec3.add(vertexA.cpos, vec3.scale(bToA, (depth*vertexA.imass), vec3.create()));
+			// friction / damping
+			vec3.subtract(vertexA.cpos, vec3.scale(velColl, (vertexA.cfric*vertexA.imass), vec3.create()));
+		}
+		if(vertexB.isFree === true) {
+			// move particle from plane
+			vec3.subtract(vertexB.cpos, vec3.scale(bToA, (depth*vertexB.imass), vec3.create()));
+			// friction / damping
+			vec3.add(vertexB.cpos, vec3.scale(velColl, (vertexB.cfric*vertexB.imass), vec3.create()));
+		}
+
+		// collision response callbacks
+		vertexA.eventCallbacks.onVertexCollisionResponse.call(vertexA, vertexB, velColl);
+		vertexB.eventCallbacks.onVertexCollisionResponse.call(vertexB, vertexA, velColl);
+
+		// INSTRUMENTATION
+		THWAP.Instrumentation.log('VVCollisionResponses', [vertexA, vertexB]);
+
+	}
+	,vertexVsConstraint: function(vertex, constraint, edgeRay, t, collisionDepth){
+		var collisionPoint = vec3.create()
+			,edgeNormal = constraint.normal
+			,D = vec3.create()
+			,d2, velocity, velocityNormal, velocityCollisionPlane;
+
+		vec3.add(vertex.cpos, vec3.scale(edgeRay, t), collisionPoint);
+		vec3.subtract(vertex.cpos, collisionPoint, D);
+		d2 = vec3.dot(D, D);
+
+		// calculate velocity, velocity along normal, and collision plane
+		velocity = vertex.getVelocity();
+		velocityNormal = vec3.create();
+		velocityCollisionPlane = vec3.create();
+		vec3.scale(edgeNormal, vec3.dot(velocity, edgeNormal), velocityNormal);
+		vec3.subtract(velocity, velocityNormal, velocityCollisionPlane);
+
+		if(vertex.isFree === true){
+			// move vertex from plane
+			vec3.add(vertex.cpos, vec3.scale(vec3.create(edgeNormal), collisionDepth), vertex.cpos);
+			//vec3.add(this.ppos, vec3.scale(vec3.create(edgeNormal), -collisionDepth), this.ppos);
+
+			// apply more friction when colliding
+			vec3.subtract(vertex.ppos, vec3.scale(velocityCollisionPlane, -vertex.cfric*vertex.imass), vertex.ppos);
+		}
+
+		// apply collision to each vertex, if they are free
+		if(constraint.isFree === true){
+			// move vertex from plane
+			vec3.add(constraint.v1.cpos, vec3.scale(vec3.negate(vec3.create(edgeNormal)), collisionDepth), constraint.v1.cpos);
+			vec3.add(constraint.v2.cpos, vec3.scale(vec3.negate(vec3.create(edgeNormal)), collisionDepth), constraint.v2.cpos);
+
+			// apply more friction when colliding
+			vec3.negate(vec3.scale(velocityCollisionPlane, -(constraint.v1.cfric + constraint.v2.cfric) /2));
+			vec3.subtract(constraint.v1.ppos, velocityCollisionPlane, constraint.v1.ppos);
+			vec3.subtract(constraint.v2.ppos, velocityCollisionPlane, constraint.v2.ppos);
+		}
+
+		// vertex constraint collision reponse callback
+		vertex.eventCallbacks.onConstraintCollisionResponse.call(vertex, constraint, velocity, collisionDepth);
+		constraint.eventCallbacks.onVertexCollisionResponse.call(constraint, vertex, velocity, collisionDepth);
+
+		// INSTRUMENTATION
+		THWAP.Instrumentation.log('VCCollisionResponses', [vertex, constraint]);
+
+		return vertex;
+	}
+};
 
 //---------------------------------------------------------------------
 // Export

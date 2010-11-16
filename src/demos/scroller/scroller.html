@@ -105,7 +105,7 @@ var CanvasHero = function(){
 	//this.bubble.rad = this.physicsObject.boundingRad;
 	//this.physicsObject.vlist.push( this.bubble );
 	
-	this.physicsObject.createConstraints(5);
+	this.physicsObject.createConstraints(1);
 	//var leash1 = new THWAP.LinearConstraint(this.physicsObject.vlist[3], dangly, 5);
 	//var leash2 = new THWAP.LinearConstraint(this.physicsObject.vlist[2], dangly, 5);
 	//leash1.collidable = false;
@@ -157,6 +157,8 @@ CanvasHero.prototype.update = function(dt, ctx, offset, scale){
 			(this.physicsObject.orientation);
 	this.draw(ctx, offset,scale);
 }
+
+// TODO: WTF is with input on firefox? Something is not framerate independent...
 
 		
 var  TWorld = new THWAP.World()
@@ -282,7 +284,7 @@ ZAP.CGLM
 	.setMode('accuracy', 5);
 
 ZAP.CGLM.register(function priorityOne(dt){
-	focus.addAcceleration([0,1000,0]);
+	//focus.addAcceleration([0,1000,0]);
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
 	KEY.dispatcher();
 }, function priorityTwo(dt, fps, afps, lag, iterations){
