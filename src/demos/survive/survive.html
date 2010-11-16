@@ -21,7 +21,7 @@ var  TWorld = new THWAP.World()
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
 	,numZombies = 0
-	,maxZombies = 30
+	,maxZombies = 40
 	,zombieSize = 5
 	,zombieSpeed = 5000
 	,spawnInterval = 300
@@ -110,8 +110,8 @@ timerRef = setInterval(function(){
 	vec3.add(start, [rand*200, 200, 0], pos);
 	
 	p.moveTo(pos)
-		.setPassiveFriction(0)
-		.setCollisionFriction(0)
+		.setPassiveFriction(0.01)
+		.setCollisionFriction(0.01)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
 		});

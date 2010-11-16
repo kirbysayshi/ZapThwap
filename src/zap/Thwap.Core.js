@@ -220,17 +220,23 @@ Vertex.prototype.collideVertex = function(vert){
 	// TODO: swap out with ov3 for just this method
 	
 	// INSTRUMENTATION
-	THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
+	//THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
 	
-	var diff = vec3.subtract(this.cpos, vert.cpos, vec3.create())
+	var  tcpos = this.cpos
+		,vcpos = vert.cpos
+		,tppos = this.ppos
+		,vppos = vert.ppos
+		,diff = vec3.subtract(tcpos, vcpos, [])
 		,diffLength = vec3.length(diff)
 		,comboRad = this.rad + vert.rad
+		,depth = comboRad - diffLength
+		,comboInvMass = this.imass + vert.imass
+		,velDiff = []
+		,velNorm
+		,velColl;
 		
 	// early out, too far apart
 	if(diffLength > comboRad) return false;
-	
-	var  depth = comboRad - diffLength
-		,comboInvMass = this.imass + vert.imass;
 	
 	// collision detection callbacks
 	this.eventCallbacks.onVertexCollisionDetection.call(this, vert, depth);
@@ -244,11 +250,12 @@ Vertex.prototype.collideVertex = function(vert){
 	}
 	
 	// velocity diff, velocity along normal, and velocity along collision plane
-	var  thisVel = vec3.subtract(this.cpos, this.ppos, vec3.create())
-		,vertVel = vec3.subtract(vert.cpos, vert.ppos, vec3.create())
-		,velDiff = vec3.subtract(thisVel, vertVel, vec3.create())
-		,velNorm = vec3.scale(diff, vec3.dot(velDiff, diff), vec3.create())
-		,velColl = vec3.subtract(velDiff, velNorm, vec3.create());
+	velDiff[0] = (vcpos[0] - vppos[0]) - (tcpos[0] - tppos[0]);
+	velDiff[1] = (vcpos[1] - vppos[1]) - (tcpos[1] - tppos[1]);
+	velDiff[2] = (vcpos[2] - vppos[2]) - (tcpos[2] - tppos[2]);
+	
+	velNorm = vec3.scale(diff, vec3.dot(velDiff, diff), []);
+	velColl = vec3.subtract(velDiff, velNorm, []);
 	
 	// friction / damping
 	velColl[0] /= comboInvMass;
@@ -257,15 +264,15 @@ Vertex.prototype.collideVertex = function(vert){
 	
 	if(this.isFree === true) {
 		// move particle from plane
-		vec3.add(this.cpos, vec3.scale(diff, (depth*this.imass), vec3.create()));
+		vec3.add(tcpos, vec3.scale(diff, (depth*this.imass), []));
 		// friction / damping
-		vec3.subtract(this.cpos, vec3.scale(velColl, (this.cfric*this.imass), vec3.create()));
+		vec3.subtract(tcpos, vec3.scale(velColl, (this.cfric*this.imass), []));
 	}
 	if(vert.isFree === true) {
 		// move particle from plane
-		vec3.subtract(vert.cpos, vec3.scale(diff, (depth*vert.imass), vec3.create()));
+		vec3.subtract(vcpos, vec3.scale(diff, (depth*vert.imass), []));
 		// friction / damping
-		vec3.add(vert.cpos, vec3.scale(velColl, (vert.cfric*vert.imass), vec3.create()));
+		vec3.add(vcpos, vec3.scale(velColl, (vert.cfric*vert.imass), []));
 	}
 	
 	// collision response callbacks
@@ -273,7 +280,7 @@ Vertex.prototype.collideVertex = function(vert){
 	vert.eventCallbacks.onVertexCollisionResponse.call(vert, this, velColl);
 	
 	// INSTRUMENTATION
-	THWAP.Instrumentation.log('VVCollisionResponses', [this, vert]);
+	//THWAP.Instrumentation.log('VVCollisionResponses', [this, vert]);
 	
 	return this;
 }
@@ -583,7 +590,7 @@ Body.prototype.collideWithBody = function(body){
 	
 	if(body == this){ return false; }
 	
-	var v = c = bv = bc = 0
+	var v = 0, c = 0, bv = 0, bc = 0
 		,vl = this.vlist.length
 		,cl = this.clist.length
 		,bvl = body.vlist.length
