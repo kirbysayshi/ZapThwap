@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style type="text/css">
+        body{font-size:10px;}
+        .result{float:left; margin-right:20px;}
+    </style>
+</head>
+<body>
+
+<input id="interval" type="button" value="setInterval" />
+<input id="timeout" type="button" value="setTimeout" />
+
+<div id="output">
+    
+</div>
+
+<script type="text/javascript">
+var intervalCounter = 0, timeoutCounter = 0, iterations = 100,
+    intervalTimes = [], timeoutTimes = [],
+    lastIntervalTime = 0, lastTimeoutTime = 0,
+    output = document.getElementById("output");
+
+document.getElementById("interval").addEventListener("click", function(e){
+
+    lastIntervalTime = +new Date();
+    
+    var ref = setInterval(function(){
+        var d = +new Date(),
+            delta = d - lastIntervalTime;
+        
+        intervalTimes.push(delta);
+        
+        if(intervalTimes.length >= iterations){
+            clearInterval(ref);            
+            makeOutput(intervalTimes, 'Interval Test');
+        }
+        
+        lastIntervalTime = d;
+    }, 1);
+
+}, false);
+
+document.getElementById("timeout").addEventListener("click", function(e){
+
+    lastTimeoutTime = +new Date();
+
+    function run(){
+        var d = +new Date(),
+            delta = d - lastTimeoutTime;
+        
+        timeoutTimes.push(delta);
+        
+        if(timeoutTimes.length >= iterations){
+            clearTimeout(ref);            
+            makeOutput(timeoutTimes, 'Timeout Test');
+        } else {
+            setTimeout(run, 1);
+        }
+        
+        lastTimeoutTime = d;
+    }
+
+    var ref = setTimeout(run, 1);
+
+}, false);
+
+function makeOutput(resultsArr, heading){
+    var avg = 0;
+    resultsArr.forEach(function(val){
+        avg += val;
+    });
+    
+    output.innerHTML +=
+        '<div class="result">'
+        + '<h1>' + heading + '</h1>'
+        + '<p>AVG: ' + (avg / resultsArr.length) + '</p>'
+        + resultsArr.join('<br />')
+        + '</div>';
+}
+
+</script>    
+</body>
+</html>
