@@ -21,10 +21,10 @@ var  TWorld = new THWAP.World()
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
 	,numZombies = 0
-	,maxZombies = 40
+	,maxZombies = 90
 	,zombieSize = 5
 	,zombieSpeed = 5000
-	,spawnInterval = 300
+	,spawnInterval = 100
 	,timerRef = 0
 	,rampSlope = 300
 	,flesh = vec3.create([$cWorld[0].width / 2, 50, 0])
@@ -98,7 +98,7 @@ left.moveTo([0,$cWorld[0].height - 100,0]);
 right.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0]);
 
 timerRef = setInterval(function(){
-	if(numZombies >= maxZombies) { clearInterval(timerRef); return; }
+	if(numZombies == maxZombies) { clearInterval(timerRef); return; }
 	
 	var  rand = Math.random()
 		,pos = vec3.create()

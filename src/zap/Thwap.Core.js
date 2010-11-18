@@ -222,18 +222,14 @@ Vertex.prototype.collideVertex = function(vert){
 	// INSTRUMENTATION
 	//THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
 	
-	var  tcpos = this.cpos
-		,vcpos = vert.cpos
-		,tppos = this.ppos
-		,vppos = vert.ppos
+	var  tcpos = this.cpos, vcpos = vert.cpos
+		,tppos = this.ppos, vppos = vert.ppos
 		,diff = vec3.subtract(tcpos, vcpos, [])
 		,diffLength = vec3.length(diff)
 		,comboRad = this.rad + vert.rad
 		,depth = comboRad - diffLength
 		,comboInvMass = this.imass + vert.imass
-		,velDiff = []
-		,velNorm
-		,velColl;
+		,velDiff = [], velNorm, velColl;
 		
 	// early out, too far apart
 	if(diffLength > comboRad) return false;
