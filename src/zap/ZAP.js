@@ -98,7 +98,7 @@ ZAP.CGLM = (function(){
 				,iterations
 			);
 
-			if(thisRunDT > hopefulDT * 10){
+			if(thisRunDT > hopefulDT * 10 && hopefulDT !== 0){
 				// auto stop to prevent inifinte looping?
 				console.log('DANGER, RUN TIME > 10 * EXPECTED TIME', 'RUNTIME: ' + thisRunDT, 'EXPECTED: ' + hopefulDT);
 				self.stop();
@@ -139,7 +139,7 @@ ZAP.CGLM = (function(){
 				for(; i < deltaFrames && i < maxFrameSkip; i++){ tCommands(deltaTimePerFrame); }
 				
 				// non-time dependent commands here, like drawing
-				nCommands(d - lastTime, currentFps, avgFps, lag);
+				nCommands(d - lastTime, currentFps, avgFps, lag, deltaFrames);
 				
 				// save current date as last date for next round
 				lastTime = d;
