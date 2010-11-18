@@ -31,7 +31,7 @@ var ANGRY = {};
 	
 	box.physicsObject
 		.moveTo([80,340,0])
-		.setPassiveFriction(0.001)
+		.setPassiveFriction(0.01)
 		.setCollisionFriction(1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
@@ -40,7 +40,7 @@ var ANGRY = {};
 	
 	box2.physicsObject
 		.moveTo([80,275,0])
-		.setPassiveFriction(0.001)
+		.setPassiveFriction(0.01)
 		.setCollisionFriction(1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
@@ -53,7 +53,7 @@ var ANGRY = {};
 	
 	ZAP.CGLM
 		.setFPS(100)
-		.setMode('accuracy', 10);
+		.setMode('sycnronicity', 5);
 	
 	ZAP.CGLM.register(function priorityOne(dt){
 		//dt *= 0.001; 
