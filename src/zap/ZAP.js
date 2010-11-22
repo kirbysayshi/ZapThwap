@@ -190,6 +190,7 @@ ZAP.CGLM = (function(){
 	}
 	self.setFPS = function(fps){
 		targetFPS = fps;
+		targetInterval = 1000 / targetFPS;
 		return self;
 	}
 	

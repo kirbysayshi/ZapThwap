@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>ZAP - Survive Demo</title>
+	</head>
+	<body>
+		<canvas id="cvsWorld" width="600" height="600" style="background-color: black;"></canvas>
+		<div id="info"></div>
+		<script type="text/javascript" src="../../lib/glMatrix.js"></script>
+		<script type="text/javascript" src="../../lib/jquery-1.4.2.min.js"></script>
+		
+		<script src="../../zap/Thwap.Core.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Thwap.Entities.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Key.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Math.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+var  TWorld = new THWAP.World()
+	,$cWorld = $("#cvsWorld")
+	,info = $("#info")[0]
+	,ctx = $cWorld[0].getContext('2d')
+	,sol = new THWAP.Entities.SingleVertexBody(700)
+	,earth = new THWAP.Entities.SingleVertexBody(6.371)
+	,G = 6.67428e-11;	
+	
+sol.vlist[0].imass = 1/100000000; // it's just that big
+earth.vlist[0].imass = 1/5.9736; // 10e24
+earth
+	.moveTo([1850, 0, 0])
+	.setPassiveFriction(0.0000001)
+	.addAcceleration([0, 1500000, 0]);
+
+TWorld
+	.addBody(sol)
+	.addBody(earth);
+
+
+KEY.listen(function(down){
+	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
+});
+
+ZAP.CGLM
+	.setFPS(2000)
+	.setMode('basic', 1);
+
+ZAP.CGLM.register(function priorityOne(dt){
+	
+	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
+	
+	var  distance = vec3.length(vec3.subtract(earth.boundingPos, sol.boundingPos, []))
+		,dir = []
+		,F = 1/(sol.vlist[0].imass * earth.vlist[0].imass)/(distance*distance)*G*100000000000;
+	
+	vec3.direction(sol.boundingPos, earth.boundingPos, dir);
+	vec3.scale(dir, F);
+	earth.addAcceleration( dir );
+	//console.log(dir);
+	
+	KEY.dispatcher();
+	
+}, function priorityTwo(dt, fps, afps, lag, iterations){
+	//ctx.clearRect(0,0,600,600);
+	for(var i = 0; i < TWorld.blist.length; i++){
+		TWorld.blist[i].debugDraw(ctx, [6000,6000,0], 0.05);
+	}
+	//console.log(TWorld.blist);
+	info.innerHTML = "DT: " + dt + "<br /> FPS: " + fps + "<br /> AVG FPS: " + afps + "<br /> LAG: " + lag + "<br /> ITERATIONS: " + iterations;
+});
+
+ZAP.CGLM.start();
+
+		</script>
+	</body>
+</html>
