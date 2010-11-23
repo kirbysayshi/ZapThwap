@@ -9,14 +9,18 @@
 <body>
 
 <input id="interval" type="button" value="setInterval" />
+<input id="intervalLoop" type="button" value="setInterval w/ loop" />
 <input id="timeout" type="button" value="setTimeout" />
+<input id="timeoutLoop" type="button" value="setTimeout w/ loop" />
+<input id="postMessage" type="button" value="postMessage" />
+<input id="postMessageLoop" type="button" value="postMessage w/ loop" />
 
 <div id="output">
     
 </div>
 
 <script type="text/javascript">
-var intervalCounter = 0, timeoutCounter = 0, iterations = 100,
+var intervalCounter = 0, timeoutCounter = 0, iterations = 10000,
     intervalTimes = [], timeoutTimes = [],
     lastIntervalTime = 0, lastTimeoutTime = 0,
     output = document.getElementById("output");
@@ -24,6 +28,7 @@ var intervalCounter = 0, timeoutCounter = 0, iterations = 100,
 document.getElementById("interval").addEventListener("click", function(e){
 
     lastIntervalTime = +new Date();
+	intervalTimes.length = 0;
     
     var ref = setInterval(function(){
         var d = +new Date(),
@@ -41,9 +46,34 @@ document.getElementById("interval").addEventListener("click", function(e){
 
 }, false);
 
+document.getElementById("intervalLoop").addEventListener("click", function(e){
+
+    lastIntervalTime = +new Date();
+	intervalTimes.length = 0;
+    
+    var ref = setInterval(function(){
+        var d = +new Date(),
+            delta = d - lastIntervalTime,
+			i = 1000000;
+        
+        intervalTimes.push(delta);
+        
+		while(i > 0){ i -= 1; }
+
+        if(intervalTimes.length >= iterations){
+            clearInterval(ref);            
+            makeOutput(intervalTimes, 'Interval w/ Loop Test');
+        }
+        
+        lastIntervalTime = d;
+    }, 1);
+
+}, false);
+
 document.getElementById("timeout").addEventListener("click", function(e){
 
     lastTimeoutTime = +new Date();
+	timeoutTimes.length = 0;
 
     function run(){
         var d = +new Date(),
@@ -65,16 +95,106 @@ document.getElementById("timeout").addEventListener("click", function(e){
 
 }, false);
 
+document.getElementById("timeoutLoop").addEventListener("click", function(e){
+
+    lastTimeoutTime = +new Date();
+	timeoutTimes.length = 0;
+
+    function run(){
+        var d = +new Date(),
+            delta = d - lastTimeoutTime,
+			i = 1000000;
+        
+        timeoutTimes.push(delta);
+        
+		while(i > 0){ i -= 1; }
+
+        if(timeoutTimes.length >= iterations){
+            clearTimeout(ref);            
+            makeOutput(timeoutTimes, 'Timeout w/ Loop Test');
+        } else {
+            setTimeout(run, 1);
+        }
+        
+        lastTimeoutTime = d;
+    }
+
+    var ref = setTimeout(run, 1);
+
+}, false);
+
+document.getElementById("postMessage").addEventListener("click", function(e){
+
+	var lastPostMessageTime = +new Date()
+		,postMessageTimes = [];
+	
+	window.removeEventListener('message', run, false);
+	window.addEventListener('message', run, false);	
+
+    function run(){
+        var d = +new Date(),
+            delta = d - lastPostMessageTime;
+        
+        postMessageTimes.push(delta);
+
+        if(postMessageTimes.length >= iterations){          
+            makeOutput(postMessageTimes, 'Post Message Test');
+			window.removeEventListener('message', run, false);
+        } else {
+            window.postMessage('test message', '*');
+        }
+        
+        lastPostMessageTime = d;
+    }
+
+	window.postMessage('test message', '*');
+
+}, false);
+
+document.getElementById("postMessageLoop").addEventListener("click", function(e){
+
+	var lastPostMessageTime = +new Date()
+		,postMessageTimes = [];
+	
+	window.removeEventListener('message', run, false);
+	window.addEventListener('message', run, false);	
+
+    function run(){
+        var d = +new Date(),
+            delta = d - lastPostMessageTime,
+			i = 1000000;
+        
+        postMessageTimes.push(delta);
+        
+		while(i > 0){ i -= 1; }
+
+        if(postMessageTimes.length >= iterations){          
+            makeOutput(postMessageTimes, 'Post Message /w Loop Test');
+			window.removeEventListener('message', run, false);
+        } else {
+            window.postMessage('test message', '*');
+        }
+        
+        lastPostMessageTime = d;
+    }
+
+	window.postMessage('test message', '*');
+
+}, false);
+
 function makeOutput(resultsArr, heading){
     var avg = 0;
     resultsArr.forEach(function(val){
         avg += val;
     });
     
+	avg = (avg / resultsArr.length);
+
     output.innerHTML +=
         '<div class="result">'
         + '<h1>' + heading + '</h1>'
-        + '<p>AVG: ' + (avg / resultsArr.length) + '</p>'
+        + '<p>AVG: ' + avg + '</p>'
+		+ '<p>FPS: ' + (1000 / avg) + '</p>'
         + resultsArr.join('<br />')
         + '</div>';
 }
