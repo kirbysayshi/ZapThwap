@@ -25,33 +25,28 @@ var intervalCounter = 0, timeoutCounter = 0, iterations = 10000,
     lastIntervalTime = 0, lastTimeoutTime = 0,
     output = document.getElementById("output");
 
-// quick cross-browser events to test speeds on IE
-var events = {
-    on: (function(){
-        if (typeof window.addEventListener === 'function') {
-            return function (el, type, fn) {
+// simple cross-browser events
+(function(root){
+    if (typeof window.addEventListener === 'function') {
+        root.events = {
+            on: function (el, type, fn) {
                 el.addEventListener(type, fn, false);
-            };
-           
-        } else if (typeof document.attachEvent === 'function') { // IE
-            return function (el, type, fn) {
-                el.attachEvent('on' + type, fn);
-            };
-        }
-    })()
-    ,remove: (function(){
-        if (typeof window.addEventListener === 'function') {   
-            return function (el, type, fn) {
+            }
+            ,remove: function (el, type, fn) {
                 el.removeEventListener(type, fn, false);
-            };
-        } else {  
-            return function (el, type, fn) {
+            }
+        };
+    } else if (typeof document.attachEvent === 'function') { // IE
+        root.events = {
+            on: function (el, type, fn) {
+                el.attachEvent('on' + type, fn);
+            }
+            ,remove: function (el, type, fn) {
                 el.detachEvent('on' + type, fn);
-            };
-        }
-    })()
-}
-
+            }
+        };
+    }
+})(this);
 
 events.on( document.getElementById("interval"), "click", function(e){
 
