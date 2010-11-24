@@ -53,7 +53,7 @@ var events = {
 }
 
 
-document.getElementById("interval").addEventListener("click", function(e){
+events.on( document.getElementById("interval"), "click", function(e){
 
     lastIntervalTime = +new Date();
 	intervalTimes.length = 0;
@@ -74,7 +74,7 @@ document.getElementById("interval").addEventListener("click", function(e){
 
 }, false);
 
-document.getElementById("intervalLoop").addEventListener("click", function(e){
+events.on( document.getElementById("intervalLoop"), "click", function(e){
 
     lastIntervalTime = +new Date();
 	intervalTimes.length = 0;
@@ -98,7 +98,7 @@ document.getElementById("intervalLoop").addEventListener("click", function(e){
 
 }, false);
 
-document.getElementById("timeout").addEventListener("click", function(e){
+events.on( document.getElementById("timeout"), "click", function(e){
 
     lastTimeoutTime = +new Date();
 	timeoutTimes.length = 0;
@@ -123,7 +123,7 @@ document.getElementById("timeout").addEventListener("click", function(e){
 
 }, false);
 
-document.getElementById("timeoutLoop").addEventListener("click", function(e){
+events.on( document.getElementById("timeoutLoop"), "click", function(e){
 
     lastTimeoutTime = +new Date();
 	timeoutTimes.length = 0;
@@ -151,7 +151,7 @@ document.getElementById("timeoutLoop").addEventListener("click", function(e){
 
 }, false);
 
-document.getElementById("postMessage").addEventListener("click", function(e){
+events.on( document.getElementById("postMessage"), "click", function(e){
 
 	var lastPostMessageTime = +new Date()
 		,postMessageTimes = [];
@@ -179,7 +179,7 @@ document.getElementById("postMessage").addEventListener("click", function(e){
 
 }, false);
 
-document.getElementById("postMessageLoop").addEventListener("click", function(e){
+events.on( document.getElementById("postMessageLoop"), "click", function(e){
 
 	var lastPostMessageTime = +new Date()
 		,postMessageTimes = [];
