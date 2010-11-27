@@ -279,31 +279,50 @@ $cWorld.bind('click', function(e){
 	
 });
 
+//ZAP.CGLM
+//	.setFPS(100)
+//	.setMode('accuracy', 5);
+
 ZAP.CGLM
-	.setFPS(100)
-	.setMode('accuracy', 5);
+	.setMode('custom')
+	.mode
+		.setFPS(120)
+		.setTimeStep(10)
+		.setSpeedX(1);
+
+//ZAP.CGLM
+//	.setMode('realtime')
+//	.mode
+//		.setFPS(30)
+//		.setTimeStep(1);
+//
+
 
 ZAP.CGLM.register(function priorityOne(dt){
 	focus.addAcceleration([0,1000,0]);
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
 	KEY.dispatcher();
-}, function priorityTwo(dt, fps, afps, lag, iterations){
+}, function priorityTwo(stats){
 	ctx.clearRect(0,0,600,600);
 	var offset = ZAP.Scroller.getOffset(focus.boundingPos);
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx, offset, drawingScale);
 	}
-	hero.update(dt, ctx, offset, drawingScale);
+	hero.update(stats.delta, ctx, offset, drawingScale);
 	//console.log(offset, focus.boundingPos);
-	var instr = THWAP.Instrumentation.thisStep;
-	var instrS = '';
-	for(var p in instr){
-		instrS += "<br />" + p + ": " + instr[p].length;
-	}
-	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps 
-		+ " LAG: " + lag + " ITERATIONS: " + iterations + "<br />"
-		+ "VCOUNT: " + TWorld.vlist.length + " CCOUNT: " + TWorld.clist.length + " BCOUNT: " + TWorld.blist.length
-		+ instrS;
+	//var instr = THWAP.Instrumentation.thisStep;
+	//var instrS = '';
+	//for(var p in instr){
+	//	instrS += "<br />" + p + ": " + instr[p].length;
+	//}
+	
+	info.innerHTML = [
+		 'DT: ' + stats.delta
+		,'<br /> FPS: ' + stats.fps
+		,'<br /> AVG FPS: ' + stats.avgfps
+		,'<br /> LAG: ' + stats.lag
+		//,'<br /> ITERATIONS: ' + iterations
+	].join('');
 	//console.log(THWAP.Instrumentation.thisStep);
 	hero.canJump = false;
 });

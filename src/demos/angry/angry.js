@@ -8,10 +8,12 @@ var ANGRY = {};
 		,$dView = $("#domViewport")
 		,$cWorld = $("#cvsWorld")
 		,info = $("#info")[0]
+		,tsInfo = $("#tsInfo")[0]
 		,ctx = $cWorld[0].getContext('2d')
 		,box = new ZAP.Entities.Box(62, 64, 'src/zap/defaults/mmzmugs1sheet.gif')
 		,box2 = new ZAP.Entities.Box(62, 64, 'src/zap/defaults/mmzmugs1sheet.gif')
-		,wall = new ZAP.Entities.Box(600, 200);
+		,wall = new ZAP.Entities.Box(600, 200)
+		,tsStats;
 	
 	box.spriteObject.attachTo($dWorld[0]);
 	box2.spriteObject.attachTo($dWorld[0]);
@@ -30,17 +32,16 @@ var ANGRY = {};
 	});
 	
 	box.physicsObject
-		.moveTo([80,340,0])
-		.setPassiveFriction(0.01)
+		.moveTo([200,340,0])
+		.setPassiveFriction(0.001)
 		.setCollisionFriction(1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
-			c.iterations = 1;
 		});
 	
 	box2.physicsObject
-		.moveTo([80,275,0])
-		.setPassiveFriction(0.01)
+		.moveTo([200,275,0])
+		.setPassiveFriction(0.001)
 		.setCollisionFriction(1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
@@ -51,27 +52,58 @@ var ANGRY = {};
 		.addBody(box2.physicsObject)
 		.addBody(wall.physicsObject);
 	
-	ZAP.CGLM
-		.setFPS(100)
-		.setMode('sycnronicity', 5);
+	//ZAP.CGLM
+	//	.setFPS(100)
+	//	.setMode('sycnronicity', 5);
 	
-	ZAP.CGLM.register(function priorityOne(dt){
+	ZAP.CGLM
+		.setMode('custom')
+		.mode
+			.setFPS(100)
+			.setTimeStep(50)
+			.setSpeedX(1);
+	
+	//ZAP.CGLM
+	//	.setMode('realtime')
+	//	.mode
+	//		.setFPS(100)
+	//		.setTimeStep(10)
+	//		.setSimTimeScale(1);
+	
+	ZAP.CGLM.register(function priorityOne(dt, stats){
 		//dt *= 0.001; 
 		KEY.dispatcher();
 		TWorld.step(dt*0.001); // dt comes in ms, we need seconds
 		box.physicsObject.addAcceleration([0,1000,0]);
 		box2.physicsObject.addAcceleration([0,1000,0]);
 		
-		box.update(dt);
-		box2.update(dt); 
-		wall.update(dt);
-	}, function priorityTwo(dt, fps, afps, lag, iterations){
-		dt *= 0.001;
+		tsStats = stats;
+	}, function priorityTwo(stats){
+		//stats.dt *= 0.001;
 		ctx.clearRect(0,0,2000,2000);
+		
+		box.update(stats.dt);
+		box2.update(stats.dt); 
+		wall.update(stats.dt);
+		
 		box.debugDraw(ctx);
 		box2.debugDraw(ctx);
 		wall.debugDraw(ctx);
-		info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
+		
+		info.innerHTML = [
+			 'DT: ' + stats.delta
+			,'<br /> FPS: ' + stats.fps
+			,'<br /> AVG FPS: ' + stats.avgfps
+			,'<br /> LAG: ' + stats.lag
+			//,'<br /> ITERATIONS: ' + iterations
+		].join('');
+		
+		tsInfo.innerHTML = [
+			 'TS: ' + tsStats.delta
+			,'<br /> IPS: ' + tsStats.ips
+			,'<br /> AVG IPS: ' + tsStats.avgips
+			,'<br /> ITERATIONS: ' + tsStats.iterations
+		].join('');
 	});
 	
 	KEY.listen(function(down){

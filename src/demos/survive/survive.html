@@ -7,6 +7,7 @@
 	<body>
 		<canvas id="cvsWorld" width="600" height="600" style="background-color: black;"></canvas>
 		<div id="info"></div>
+		<div id="tsInfo"></div>
 		<script type="text/javascript" src="../../lib/glMatrix.js"></script>
 		<script type="text/javascript" src="../../lib/jquery-1.4.2.min.js"></script>
 		
@@ -20,14 +21,16 @@ var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
+	,tsInfo = $("#tsInfo")[0]
+	,tsStats = {}
 	,numZombies = 0
 	,maxZombies = 90
-	,zombieSize = 1
+	,zombieSize = 5
 	,zombieSpeed = 5000
 	,spawnInterval = 100
 	,timerRef = 0
 	,rampSlope = 300
-	,flesh = vec3.create([$cWorld[0].width / 2, 50, 0])
+	,flesh = vec3.create([$cWorld[0].width / 2, 300, 0])
 	,start = vec3.create([$cWorld[0].width / 2, $cWorld[0].height - 10, 0])
 	,left = (function(){
 		var b = new THWAP.Body();
@@ -90,9 +93,9 @@ var  TWorld = new THWAP.World()
 		return b;
 	})();	
 
-//TWorld
-//	.addBody(left)
-//	.addBody(right);
+TWorld
+	.addBody(left)
+	.addBody(right);
 //
 left.moveTo([0,$cWorld[0].height - 100,0]);
 right.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0]);
@@ -105,13 +108,13 @@ timerRef = setInterval(function(){
 		//,p = new THWAP.Entities.CircleBox(10);
 		,p = new THWAP.Entities.SingleVertexBody(zombieSize);
 	
-	if(rand > 0.5){ rand *= -1; }
+	if(Math.random() > 0.5){ rand *= -1; }
 	
 	vec3.add(start, [rand*200, 200, 0], pos);
 	
 	p.moveTo(pos)
 		.setPassiveFriction(0.01)
-		.setCollisionFriction(0.01)
+		.setCollisionFriction(0)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
 		});
@@ -128,12 +131,26 @@ KEY.listen(function(down){
 	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
 });
 
-ZAP.CGLM
-	.setFPS(100)
-	.setMode('accuracy', 10);
+//ZAP.CGLM
+//	.setFPS(100)
+//	.setMode('accuracy', 10);
 
-ZAP.CGLM.register(function priorityOne(dt){
-	var i = 0, b, distance, dir = vec3.create();
+ZAP.CGLM
+	.setMode('custom')
+	.mode
+		.setFPS(60)
+		.setTimeStep(10)
+		.setSpeedX(1);
+
+//ZAP.CGLM
+//	.setMode('realtime')
+//	.mode
+//		.setFPS(60)
+//		.setTimeStep(10)
+//		.setSimTimeScale(0.01);
+//
+ZAP.CGLM.register(function priorityOne(dt, stats){
+	var i = 0, b, distance, dir = [];
 	
 	KEY.dispatcher();
 	
@@ -141,17 +158,31 @@ ZAP.CGLM.register(function priorityOne(dt){
 		b = TWorld.blist[i];
 		distance = vec3.length(vec3.subtract(flesh, b.boundingPos, vec3.create()));
 		vec3.direction(flesh, b.boundingPos, dir);
-		b.addAcceleration( vec3.scale(dir, zombieSpeed/distance*100) );
+		b.addAcceleration( vec3.scale(dir, zombieSpeed/distance*distance*0.5) );
 	}
 	
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
-}, function priorityTwo(dt, fps, afps, lag, iterations){
-	ctx.clearRect(0,0,600,600);
+	tsStats = stats;
+}, function priorityTwo(stats){
+	//ctx.clearRect(0,0,600,600);
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx, false, 0.7);
 	}
 	//console.log(TWorld.blist);
-	info.innerHTML = "DT: " + dt + "<br /> FPS: " + fps + "<br /> AVG FPS: " + afps + "<br /> LAG: " + lag + "<br /> ITERATIONS: " + iterations;
+	info.innerHTML = [
+		 'DT: ' + stats.delta
+		,'<br /> FPS: ' + stats.fps
+		,'<br /> AVG FPS: ' + stats.avgfps
+		,'<br /> LAG: ' + stats.lag
+		//,'<br /> ITERATIONS: ' + iterations
+	].join('');
+	
+	tsInfo.innerHTML = [
+		 'TS: ' + tsStats.delta
+		,'<br /> IPS: ' + tsStats.ips
+		,'<br /> AVG IPS: ' + tsStats.avgips
+		,'<br /> ITERATIONS: ' + tsStats.iterations
+	].join('');
 });
 
 ZAP.CGLM.start();

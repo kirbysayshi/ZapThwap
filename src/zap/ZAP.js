@@ -1,4 +1,4 @@
-(function(){
+(function(root){
 
 if(typeof(console) === 'undefined'){ 
 	console = { log: function(){} } 
@@ -21,180 +21,280 @@ ZAP.inherits = function(child, parent) {
 //---------------------------------------------------------------------
 // Constant Game Loop Machine
 //---------------------------------------------------------------------
-ZAP.CGLM = (function(){
-	var self = {}
-		,targetFPS = 60		
-		,targetInterval = 1000 / targetFPS
-		,timeOutRef = 0
-		,startTime = 0
-		,running = false
-		,tCommands = function(){} // time-dependent callback
-		,nCommands = function(){}; // non-time-dependent callback
+ZAP.CGLM = (function(root){
 	
-	self.basic = function(tDT){
-		var counter = 0
-			,totalRuns = 0
-			,checkInterval = 20
-			,currentFPS = 0
-			,lastCheckTime = 0
-			,lastCheckDelta = 0;
-		
-		function run(){
-			counter++;
-			totalRuns++;
-			
-			var now = +new Date();
-			if(counter === checkInterval){
-				lastCheckDelta = now - lastCheckTime;
-				currentFPS = lastCheckDelta / checkInterval;
-				lastCheckTime = now;
-			}
-			
-			tCommands(tDT);
-			nCommands(
-				tDT
-				,currentFPS.toFixed(2)
-				,((now - lastCheckTime) / totalRuns).toFixed(2)
-				,targetInterval - lastCheckDelta
-				,1
-			);
-			
-			if(counter > checkInterval) counter = 0;
+	var CGLM = {
+		 modes: {}
+		,mode: {}
+		,onTimeStep: function(){} // happens a lot
+		,onFrameUpdate: function(){} // happens not as much
+		,start: function(){
+			this.mode.onStart();
+			root.addEventListener('message', main, false);
+			root.postMessage('start timestep dispatch', '*');
+			console.log('CGLM START');
+			return this;
 		}
+		,stop: function(){
+			root.removeEventListener('message', main, false);
+			this.mode.onStop();
+			console.log('CGLM HALTED');
+			return this;
+		}
+		,register: function(onTimeStep, onFrameUpdate){
+			this.onTimeStep = onTimeStep;
+			this.onFrameUpdate = onFrameUpdate;
+			return this;
+		}
+		,setMode: function(mode){
+			if( typeof this.modes[mode] !== 'undefined' ){
+				this.mode = this.modes[mode];
+			} else {
+				throw [
+					'The mode "'
+					,mode
+					,'" is not defined for the Constant Game Loop Machine'
+				].join('');
+			}
+			return this;
+		}
+	};
+
+	function main(){
+		CGLM.mode.run( CGLM.onTimeStep, CGLM.onFrameUpdate );
+		root.postMessage('timestep dispatch', '*');
+	}
+
+	return CGLM;
+
+})(this);
+
+
+/**
+ * Custom mode allows control over all three control points:
+ * speed multiplier (iterations of the timeStep loop), timeStep
+ * (the value passed into the onTimeStep callback), and framerate,
+ * or how often onFrameUpdate is called. If the time between 
+ * render frames is greater than 1.5 seconds, execution is
+ * automatically halted to prevent browser lockup.
+ *
+ */
+ZAP.CGLM.modes.custom = (function(){
+	
+	var  startTime
+		,totalFrames 
+		,totalIterations = 0
+		,lastActualDT = 0
+		,lastTime = 0
+		,totalDTSinceLastFrame = 0
+		,totalDTSinceLastTimeStep = 0
+		,iterations = 1
+		,targetFrameInterval = 16
+		,timeStep = 5
+		,targetFPS = 60
+		,frameUpdateStats = {
+			 delta: 0
+			,fps: 0
+			,avgFps: 0
+		}
+		,timeStepStats = {
+			 delta: 0
+			,ips: 0
+			,avgips: 0
+			,iterations: 0
+		};
+	
+	return {
+		run: function(tCommands, nCommands){
+			var  d = +new Date()
+				,delta = d - lastTime
+				,i;
+			
+			totalDTSinceLastFrame += delta;
+			totalDTSinceLastTimeStep += delta;
 		
-		return run;
+			if(totalDTSinceLastTimeStep >= timeStep){
+				
+				timeStepStats.delta = timeStep;
+				timeStepStats.ips = (iterations / totalDTSinceLastTimeStep * 1000).toFixed(2);
+				timeStepStats.avgips = (totalIterations / (d - startTime) * 1000).toFixed(2);
+				timeStepStats.iterations = iterations;
+				
+				for(i = 0; i < iterations; i++){ tCommands(timeStep, timeStepStats); }
+				totalDTSinceLastTimeStep = 0;
+				totalIterations += iterations;
+			}
+		
+			if(totalDTSinceLastFrame >= targetFrameInterval){
+				
+				frameUpdateStats.delta = totalDTSinceLastFrame;
+				frameUpdateStats.fps = (1 / totalDTSinceLastFrame * 1000).toFixed(2);
+				frameUpdateStats.avgfps = (totalFrames / (d - startTime) * 1000).toFixed(2);
+				
+				nCommands(frameUpdateStats);
+				
+				if( totalDTSinceLastFrame > 1500 ){
+					console.log([
+						 'AUTO-HALT.'
+						,' DELTA WAS GREATER THAN 1500 MS.'
+						,' TIME: ' + totalDTSinceLastFrame].join(''));
+					ZAP.CGLM.stop();
+				}
+				
+				totalDTSinceLastFrame = 0;
+				totalFrames += 1;
+			}
+		
+			lastTime = d;
+		}
+		,setFPS: function(fps){
+			targetFPS = fps;
+			targetFrameInterval = 1000 / targetFPS;
+			return this;
+		}
+		,setTimeStep: function(dt){
+			timeStep = dt;
+			return this;
+		}
+		,setSpeedX: function(x){
+			iterations = x;
+			return this;
+		}
+		,onStart: function(){
+			lastTime = +new Date();
+			totalDTSinceLastFrame = 0;
+			totalFrames = 0;
+			totalIterations = 0;
+			startTime = lastTime;
+			return this;
+		}
+		,onStop: function(){
+			
+			return this;
+		}
 	}
 	
-	self.accuracy = function(tDT){
-		var  targetDT = tDT || 5 // ms
-			,remainingIT = 0
-		 	,totalIterations = 0
-			,iterations = 0
-			,lastTime = +new Date();
+})();
 
-		function run(){
+/**
+ * Realtime mode attempts to call onTimeStep as often as necessary
+ * to keep the passed game time equal to the passed world time, based
+ * on the target timeStep. If simTimeScale is less than 1, more time
+ * passes in the real world than in the game world. If the time between 
+ * render frames is greater than 1.5 seconds, execution is
+ * automatically halted to prevent browser lockup.
+ *
+ */
+ZAP.CGLM.modes.realtime = (function(){
+	
+	var  startTime
+		,totalFrames
+		,totalIterations
+		,lastRunDT = 0 // how long the previous run() took
+		,thisRunDT = 0 // how long the current run is taking
+		,lastTime = 0 // the previous time run() was called
+		,totalDTSinceLastFrame = 0
+		,simTimeScale = 1 // 0.5 means 1 real second = 0.5 sim seconds
+		,iterations = 0
+		,remainingIT = 0
+		,targetFrameInterval = 16
+		,timeStep = 5
+		,targetFPS = 60
+		,frameUpdateStats = {
+			 delta: 0
+			,fps: 0
+			,avgFps: 0
+			,lag: 0
+		}
+		,timeStepStats = {
+			 delta: 0
+			,ips: 0
+			,avgips: 0
+			,iterations: 0
+		};
+	
+	return {
+		run: function(tCommands, nCommands){
 			var iStartTime = +new Date()
 				,delta = iStartTime - lastTime
-				,i = 0;
-			remainingIT = iterations = (delta/targetDT) + remainingIT;
-			iterations = ~~iterations;
+				,i
+				,iEndTime;
+			
+			totalDTSinceLastFrame += delta;
+			totalDTSinceLastTimeStep += (delta * simTimeScale);
+			
+			remainingIT = iterations = (totalDTSinceLastTimeStep/timeStep) + remainingIT;
+			iterations = ~~iterations; // faster than Math.floor
 			remainingIT = remainingIT - iterations;
+			
+			if(iterations > 0){
+				
+				timeStepStats.delta = timeStep;
+				timeStepStats.ips = (iterations / totalDTSinceLastTimeStep * 1000).toFixed(2);
+				timeStepStats.avgips = (totalIterations / (iStartTime - startTime) * 1000 * 100).toFixed(2);
+				timeStepStats.iterations = iterations;
 
-			for(; i < iterations; i++){ tCommands(targetDT); }
+				for(i = 0; i < iterations; i++){ tCommands(timeStep, timeStepStats); }
+				totalDTSinceLastTimeStep = 0;
+				totalIterations += iterations;
+			}
 
-			var iEndTime = +new Date()
-				,thisRunDT = iEndTime - iStartTime
-				,hopefulDT = targetDT*iterations;
+			if(totalDTSinceLastFrame >= targetFrameInterval){
 
-			// cleanup
+				thisRunDT = +new Date() - iStartTime;
+				
+				frameUpdateStats.delta = totalDTSinceLastFrame;
+				frameUpdateStats.fps = (1 / totalDTSinceLastFrame * 1000).toFixed(2);
+				frameUpdateStats.avgfps = (totalFrames / (iStartTime - startTime) * 1000).toFixed(2);
+				frameUpdateStats.lag = thisRunDT - lastRunDT;
+
+				nCommands(frameUpdateStats);
+
+				// TODO: if this happens, make it adaptive instead of halting?
+				
+				if( totalDTSinceLastFrame > 1500 ){
+					console.log([
+						 'AUTO-HALT.'
+						,' DELTA WAS GREATER THAN 1500 MS.'
+						,' TIME: ' + totalDTSinceLastFrame].join(''));
+					ZAP.CGLM.stop();
+				}
+
+				totalDTSinceLastFrame = 0;
+				totalFrames += 1;
+			}
+			
+			lastRunDT = thisRunDT;
 			lastTime = iStartTime;
-			totalIterations += iterations;
-
-			nCommands(
-				delta
-				,(1000 / thisRunDT).toFixed(2)
-				,((iEndTime - startTime) / totalIterations).toFixed(2)
-				,thisRunDT - hopefulDT
-				,iterations
-			);
-
-			if(thisRunDT > hopefulDT * 10 && hopefulDT !== 0){
-				// auto stop to prevent inifinte looping?
-				console.log('DANGER, RUN TIME > 10 * EXPECTED TIME', 'RUNTIME: ' + thisRunDT, 'EXPECTED: ' + hopefulDT);
-				self.stop();
-			} else {
-
-			}
-			//if(running === false) timeOutRef = setInterval(self.main, targetInterval);
 		}
-		
-		return run;
-	}
-		
-	self.syncronicity = function(){
-		var  avgFps = 0
-			,currentFps = 0
-			,startTime = +new Date()
-			,lastTime = +new Date()
-			,frames = 0
-			,framesDrawn = 0
-			,maxFrameSkip = 5
-			,lastFrameCount = 0
-			,lag = 0;
-		
-		function run(){
-			var d = +new Date()
-				,currentFrameCount = Math.round( (d - startTime) / 1000 * targetFPS )
-				,deltaFrames = currentFrameCount - lastFrameCount
-				,deltaTimePerFrame = (d - lastTime) / deltaFrames
-				,i = 0;
+		,setFPS: function(fps){
+			targetFPS = fps;
+			targetFrameInterval = 1000 / targetFPS;
+			return this;
+		}
+		,setTimeStep: function(dt){
+			timeStep = dt;
+			return this;
+		}
+		,setSimTimeScale: function(scale){
+			simTimeScale = scale;
+			return this;
+		}
+		,onStart: function(){
+			totalDTSinceLastFrame = 0;
+			totalDTSinceLastTimeStep = 0;
+			totalIterations = 0;
+			totalFrames = 0;
+			lastTime = +new Date();
+			startTime = lastTime;
+			return this;
+		}
+		,onStop: function(){
 			
-			if(deltaFrames > 0){
-				// calculate lag, fps, and avg fps
-				lag = Math.round(10 * frames / framesDrawn - 10) / 10;
-				avgFps = (1000 / ((d - startTime) / framesDrawn)).toFixed(2);
-				currentFps = (1000 / ((d - lastTime) / deltaFrames)).toFixed(2);
-						
-				// main time-dependent game commands here, like physics
-				for(; i < deltaFrames && i < maxFrameSkip; i++){ tCommands(deltaTimePerFrame); }
-				
-				// non-time dependent commands here, like drawing
-				nCommands(d - lastTime, currentFps, avgFps, lag, deltaFrames);
-				
-				// save current date as last date for next round
-				lastTime = d;
-				// cleanup
-				frames += deltaFrames;
-				framesDrawn++;
-				lastFrameCount = currentFrameCount;
-			}
-			//if(running === false) timeOutRef = setInterval(self.main, targetInterval);
+			return this;
 		}
-		return run;
 	}
 	
-	self.main = self.syncronicity();
-			
-	self.setMode = function(mode, tDT){
-		switch(mode){
-			case 'accuracy':
-				self.main = self.accuracy(tDT);
-				break;
-			case 'syncronicity':
-				self.main = self.syncronicity();
-				break;
-			case 'basic':
-				self.main = self.basic(tDT);
-				break;
-		}
-		return self;
-	}
-	self.register = function(timeDependent, normal){
-		tCommands = timeDependent !== undefined ? timeDependent : tCommands;
-		nCommands = normal !== undefined ? normal : nCommands;
-		return self;
-	}
-	self.start = function(){ 
-		startTime = +new Date();
-		timeOutRef = setInterval(self.main, targetInterval)
-		//self.main(); 
-		running = true; 
-		console.log("beginning execution"); 
-		return self;
-	}
-	self.stop = function(){ 
-		clearInterval(timeOutRef);
-		running = false;
-		console.log("execution halted"); 
-		return self;
-	}
-	self.setFPS = function(fps){
-		targetFPS = fps;
-		targetInterval = 1000 / targetFPS;
-		return self;
-	}
-	
-	return self;
 })();
 
 //---------------------------------------------------------------------
@@ -274,6 +374,6 @@ ZAP.Scroller = (function(){
 	
 })();
 
-window.ZAP = ZAP;
+root.ZAP = ZAP;
 
-})();
+})(this);

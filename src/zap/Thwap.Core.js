@@ -221,7 +221,7 @@ Vertex.prototype.collideVertex = function(vert){
 	// TODO: swap out with ov3 for just this method
 	
 	// INSTRUMENTATION
-	//THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
+	THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
 	
 	var  tcpos = this.cpos, vcpos = vert.cpos
 		,tppos = this.ppos, vppos = vert.ppos
@@ -380,11 +380,12 @@ function LinearConstraint(v1, v2, iterations, restLen){
 }
 LinearConstraint.prototype.satisfy = function(){
 	if(this.imass < THWAP.EPSILON) { return this; }
+	if(this.isFree === false) { return this; } // this is a hack until I rectify imass and isFree
 	
 	for(var i = 0; i < this.iterations; i++){
 		var  v1 = this.v1
 			,v2 = this.v2
-			,delta = vec3.create()
+			,delta = []
 			,delta2 = 0
 			,diff = 0;
 	
@@ -394,8 +395,8 @@ LinearConstraint.prototype.satisfy = function(){
 		diff = (vec3.length(delta) - this.restLength) / this.restLength;
 
 		vec3.scale(delta, diff/this.imass);
-		vec3.add(v1.cpos, vec3.scale(delta, v1.imass, vec3.create() ));
-		vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, vec3.create() ))
+		vec3.add(v1.cpos, vec3.scale(delta, v1.imass, [] ));
+		vec3.subtract(v2.cpos, vec3.scale(delta, v2.imass, [] ))
 	}
 	return this;
 }
@@ -521,10 +522,11 @@ Body.prototype.moveTo = function(vec){
 	
 	// recompute constraint bounding spheres and positions
 	for(var j = 0; j < this.clist.length; j++){
-		var c = this.clist[j];
+		var c = this.clist[j],
+			wasFree = c.isFree;
 		c.isFree = true; // to avoid the early abort
 		c.computeBoundingSphere();
-		c.isFree = false;
+		c.isFree = wasFree;
 	}
 	
 	return this;
@@ -714,7 +716,7 @@ Body.prototype.debugDraw = function(ctx, offset, scale){
 }
 
 var Instrumentation = {
-	sample: true
+	sample: false
 	,thisStep: {
 		 VVCollisionTests: []
 		,VCCollisionTests: []

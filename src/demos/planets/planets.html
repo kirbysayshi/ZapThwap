@@ -7,6 +7,7 @@
 	<body>
 		<canvas id="cvsWorld" width="600" height="600" style="background-color: black;"></canvas>
 		<div id="info"></div>
+		<div id="tsInfo"></div>
 		<script type="text/javascript" src="../../lib/glMatrix.js"></script>
 		<script type="text/javascript" src="../../lib/jquery-1.4.2.min.js"></script>
 		
@@ -19,6 +20,8 @@
 var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
+	,tsInfo = $("#tsInfo")[0]
+	,tsStats = {}
 	,ctx = $cWorld[0].getContext('2d')
 	,sol = new THWAP.Entities.SingleVertexBody(700)
 	,earth = new THWAP.Entities.SingleVertexBody(6.371)
@@ -28,8 +31,8 @@ sol.vlist[0].imass = 1/100000000; // it's just that big
 earth.vlist[0].imass = 1/5.9736; // 10e24
 earth
 	.moveTo([1850, 0, 0])
-	.setPassiveFriction(0.0000001)
-	.addAcceleration([0, 1500000, 0]);
+	.setPassiveFriction(0.000001)
+	.addAcceleration([0, 250000, 0]);
 
 TWorld
 	.addBody(sol)
@@ -40,11 +43,21 @@ KEY.listen(function(down){
 	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
 });
 
-ZAP.CGLM
-	.setFPS(100)
-	.setMode('accuracy', 1);
+//ZAP.CGLM
+//	.setMode('custom')
+//	.mode
+//		.setFPS(120)
+//		.setTimeStep(1)
+//		.setSpeedX(10);
 
-ZAP.CGLM.register(function priorityOne(dt){
+ZAP.CGLM
+	.setMode('realtime')
+	.mode
+		.setFPS(1000)
+		.setTimeStep(1)
+		.setSimTimeScale(1);
+
+ZAP.CGLM.register(function priorityOne(dt, stats){
 	
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
 	
@@ -56,16 +69,30 @@ ZAP.CGLM.register(function priorityOne(dt){
 	vec3.scale(dir, F);
 	earth.addAcceleration( dir );
 	//console.log(dir);
+	tsStats = stats;
 	
 	KEY.dispatcher();
 	
-}, function priorityTwo(dt, fps, afps, lag, iterations){
+}, function priorityTwo(stats){
 	//ctx.clearRect(0,0,600,600);
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx, [6000,6000,0], 0.05);
 	}
 	//console.log(TWorld.blist);
-	info.innerHTML = "DT: " + dt + "<br /> FPS: " + fps + "<br /> AVG FPS: " + afps + "<br /> LAG: " + lag + "<br /> ITERATIONS: " + iterations;
+	info.innerHTML = [
+		 'DT: ' + stats.delta
+		,'<br /> FPS: ' + stats.fps
+		,'<br /> AVG FPS: ' + stats.avgfps
+		,'<br /> LAG: ' + stats.lag
+		//,'<br /> ITERATIONS: ' + iterations
+	].join('');
+	
+	tsInfo.innerHTML = [
+		 'TS: ' + tsStats.delta
+		,'<br /> IPS: ' + tsStats.ips
+		,'<br /> AVG IPS: ' + tsStats.avgips
+		,'<br /> ITERATIONS: ' + tsStats.iterations
+	].join('');
 });
 
 ZAP.CGLM.start();

@@ -45,20 +45,39 @@ KEY.listen(function(down){
 	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
 });
 
+//ZAP.CGLM
+//	.setFPS(100)
+//	.setMode('accuracy', 10);
+
+//ZAP.CGLM
+//	.setMode('realtime')
+//	.mode
+//		.setFPS(30)
+//		.setTimeStep(10);
+//
 ZAP.CGLM
-	.setFPS(100)
-	.setMode('accuracy', 10);
+	.setMode('custom')
+	.mode
+		.setFPS(120)
+		.setTimeStep(1)
+		.setSpeedX(1);
 
 ZAP.CGLM.register(function priorityOne(dt){
 	KEY.dispatcher();
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
-}, function priorityTwo(dt, fps, afps, lag, iterations){
+}, function priorityTwo(stats){
 	ctx.clearRect(0,0,600,600);
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx);
 	}
 	//console.log(TWorld.blist);
-	info.innerHTML = "DT: " + dt + " FPS: " + fps + ", AVG FPS: " + afps + " LAG: " + lag + " ITERATIONS: " + iterations;
+	info.innerHTML = [
+		 'DT: ' + stats.delta
+		,'<br /> FPS: ' + stats.fps
+		,'<br /> AVG FPS: ' + stats.avgfps
+		,'<br /> LAG: ' + stats.lag
+		//,'<br /> ITERATIONS: ' + iterations
+	].join('');
 });
 
 ZAP.CGLM.start();
