@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>ZAP - Implosion Demo</title>
+	</head>
+	<body>
+		<canvas id="cvsWorld" width="600" height="600" style="background-color: black;"></canvas>
+		<div id="info"></div>
+		<div id="tsInfo"></div>
+		<script type="text/javascript" src="../../lib/glMatrix.js"></script>
+		<script type="text/javascript" src="../../lib/jquery-1.4.2.min.js"></script>
+		
+		<script src="../../zap/Thwap.Core.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Thwap.Entities.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Key.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/Math.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+var  TWorld = new THWAP.World()
+	,$cWorld = $("#cvsWorld")
+	,info = $("#info")[0]
+	,ctx = $cWorld[0].getContext('2d')
+	,tsInfo = $("#tsInfo")[0]
+	,tsStats = {}
+	,numZombies = 0
+	,maxZombies = 100
+	,zombieSize = 1
+	,zombieSpeed = 50000
+	,timerRef = 0
+	,flesh = vec3.create([$cWorld[0].width / 2, $cWorld[0].height / 2, 0])
+	,startdistance = 300
+	,i;	
+
+for(i = 0; i < maxZombies; i++){
+	var t = (Math.PI * 2) * (i / maxZombies)
+		,pos = vec3.add(
+			 vec3.scale( [Math.cos(t), Math.sin(t), 0], startdistance )
+			,flesh)
+		,z = new THWAP.Entities.SingleVertexBody(zombieSize);
+	
+	z
+		.moveTo(pos)
+		.setPassiveFriction(0.01)
+		.setCollisionFriction(0)
+		.clist.forEach(function(c){
+			c.isCollidable = false;
+		});
+
+	TWorld.addBody(z);
+	numZombies++;
+}
+	
+//var bounds = new THWAP.Entities.BoundsBox([10,10,0], [590,590,0]);
+//TWorld.addBody(bounds);
+
+KEY.listen(function(down){
+	if(down[27].delta > 0){ ZAP.CGLM.stop(); }
+});
+
+//ZAP.CGLM
+//	.setFPS(100)
+//	.setMode('accuracy', 10);
+
+ZAP.CGLM
+	.setMode('custom')
+	.mode
+		.setFPS(60)
+		.setTimeStep(1)
+		.setSpeedX(1);
+
+//ZAP.CGLM
+//	.setMode('realtime')
+//	.mode
+//		.setFPS(60)
+//		.setTimeStep(10)
+//		.setSimTimeScale(0.01);
+//
+ZAP.CGLM.register(function priorityOne(dt, stats){
+	var i = 0, b, distance, dir = [];
+	
+	KEY.dispatcher();
+	
+	for(i = 0; i < TWorld.blist.length; i++){
+		b = TWorld.blist[i];
+		distance = vec3.length(vec3.subtract(flesh, b.boundingPos, []));
+		vec3.direction(flesh, b.boundingPos, dir);
+		b.addAcceleration( vec3.scale(dir, zombieSpeed/distance*distance) );
+	}
+	
+	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
+	tsStats = stats;
+}, function priorityTwo(stats){
+	ctx.clearRect(0,0,600,600);
+	for(var i = 0; i < TWorld.blist.length; i++){
+		TWorld.blist[i].debugDraw(ctx, false, 1);
+	}
+	//console.log(TWorld.blist);
+	info.innerHTML = [
+		 'DT: ' + stats.delta
+		,'<br /> FPS: ' + stats.fps
+		,'<br /> AVG FPS: ' + stats.avgfps
+		,'<br /> LAG: ' + stats.lag
+		//,'<br /> ITERATIONS: ' + iterations
+	].join('');
+	
+	tsInfo.innerHTML = [
+		 'TS: ' + tsStats.delta
+		,'<br /> IPS: ' + tsStats.ips
+		,'<br /> AVG IPS: ' + tsStats.avgips
+		,'<br /> ITERATIONS: ' + tsStats.iterations
+	].join('');
+});
+
+ZAP.CGLM.start();
+
+		</script>
+	</body>
+</html>
