@@ -20,7 +20,7 @@
 </div>
 
 <script type="text/javascript">
-var intervalCounter = 0, timeoutCounter = 0, iterations = 10000,
+var intervalCounter = 0, timeoutCounter = 0, iterations = 1000,
     intervalTimes = [], timeoutTimes = [],
     lastIntervalTime = 0, lastTimeoutTime = 0,
     output = document.getElementById("output");
@@ -36,7 +36,7 @@ var intervalCounter = 0, timeoutCounter = 0, iterations = 10000,
                 el.removeEventListener(type, fn, false);
             }
         };
-    } else if (typeof document.attachEvent === 'function') { // IE
+    } else if (typeof document.attachEvent === 'object') { // IE
         root.events = {
             on: function (el, type, fn) {
                 el.attachEvent('on' + type, fn);
@@ -206,10 +206,11 @@ events.on( document.getElementById("postMessageLoop"), "click", function(e){
 }, false);
 
 function makeOutput(resultsArr, heading){
-    var avg = 0;
-    resultsArr.forEach(function(val){
-        avg += val;
-    });
+    var avg = 0, i, length = resultsArr.length;
+    
+    for(i = 0; i < length; i++){
+        avg += resultsArr[i];
+    }
     
 	avg = (avg / resultsArr.length);
 
