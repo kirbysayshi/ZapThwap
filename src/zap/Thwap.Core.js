@@ -8,7 +8,7 @@
 //		cpos is unknown
 // TODO: allow vertices to be collidable but not have collision response implemented
 //		so collision could be detected with a callback, but not auto-responded to
-// TODO: Thwap.Instrumentation
+// TODO: //THWAP.Instrumentation
 // TODO: Fix ZAP.CGLM timestep...
 
 //---------------------------------------------------------------------
@@ -24,14 +24,14 @@ function World(){
 World.prototype.addVertex = function(v){
 	if(this.vlist.indexOf(v) === -1){
 		this.vlist.push(v);
-		THWAP.Instrumentation.library.maxVertices++;
+		//THWAP.Instrumentation.library.maxVertices++;
 	}
 	return this;
 }
 World.prototype.addConstraint = function(c){
 	if(this.clist.indexOf(c) === -1){
 		this.clist.push(c);
-		THWAP.Instrumentation.library.maxConstraints++;
+		//THWAP.Instrumentation.library.maxConstraints++;
 	}
 	
 	this.addVertex(c.v1);
@@ -41,7 +41,7 @@ World.prototype.addConstraint = function(c){
 World.prototype.addBody = function(b){
 	if(this.blist.indexOf(b) === -1){
 		this.blist.push(b);
-		THWAP.Instrumentation.library.maxBodies++;
+		//THWAP.Instrumentation.library.maxBodies++;
 	}
 	
 	for(var i = 0; i < b.clist.length; i++){
@@ -61,7 +61,7 @@ World.prototype.step = function(dt){
 		,o = this.blist.length;
 	
 	// archive previous instrumentation data
-	THWAP.Instrumentation.archiveThisStep();
+	//THWAP.Instrumentation.archiveThisStep();
 	
 	// update verticies
 	while(v >= 0){
@@ -125,7 +125,7 @@ Vertex.prototype.collideConstraint = function(c){
 		) return this;
 	
 	// INSTRUMENTATION
-	THWAP.Instrumentation.log('VCCollisionTests', [this, c]);
+	//THWAP.Instrumentation.log('VCCollisionTests', [this, c]);
 	
 	//---------------------------------------------------------------------
 	// Attempt to discard quickly
@@ -210,7 +210,7 @@ Vertex.prototype.collideConstraint = function(c){
 	c.eventCallbacks.onVertexCollisionResponse.call(c, this, velocity, collisionDepth);
 	
 	// INSTRUMENTATION
-	THWAP.Instrumentation.log('VCCollisionResponses', [this, c]);
+	//THWAP.Instrumentation.log('VCCollisionResponses', [this, c]);
 	
 	return this;
 }
@@ -221,7 +221,7 @@ Vertex.prototype.collideVertex = function(vert){
 	// TODO: swap out with ov3 for just this method
 	
 	// INSTRUMENTATION
-	THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
+	//THWAP.Instrumentation.log('VVCollisionTests', [this, vert]);
 	
 	var  tcpos = this.cpos, vcpos = vert.cpos
 		,tppos = this.ppos, vppos = vert.ppos
@@ -311,7 +311,7 @@ Vertex.prototype.update = function(dt, ldt){
 	s.eventCallbacks.onPostUpdate.call(this);
 	
 	// INSTRUMENTATION
-	THWAP.Instrumentation.log('VUpdates', this);
+	//THWAP.Instrumentation.log('VUpdates', this);
 	
 	return this;
 }
@@ -429,7 +429,7 @@ LinearConstraint.prototype.update = function(dt){
 		.computeNormal();
 	this.eventCallbacks.onPostUpdate.call(this);
 	// INSTRUMENTATION
-	THWAP.Instrumentation.log('CUpdates', this);
+	//THWAP.Instrumentation.log('CUpdates', this);
 	return this;
 }
 LinearConstraint.prototype.debugDrawNormal = function(ctx, offset, scale){
@@ -593,7 +593,14 @@ Body.prototype.collideWithBody = function(body){
 		,vl = this.vlist.length
 		,cl = this.clist.length
 		,bvl = body.vlist.length
-		,bcl = body.clist.length;
+		,bcl = body.clist.length
+		,diff = [], distance;
+
+	// test for early early out
+	vec3.subtract(body.boundingPos, this.boundingPos, diff);
+	if(vec3.length(diff) > body.boundingRad + this.boundingrad){
+		return false;
+	}
 
 	// collide all this vertices - body vertices
 	for(v = 0; v < vl; v++){
@@ -787,7 +794,7 @@ var PositronCollider = {
 		if(vertexA.isCollidable === false || vertexB.isCollidable === false) return;
 
 		// INSTRUMENTATION
-		THWAP.Instrumentation.log('VVCollisionTests', [vertexA, vertexB]);
+		//THWAP.Instrumentation.log('VVCollisionTests', [vertexA, vertexB]);
 
 		this.circleVsCircle(vertexA.cpos, vertexA.rad, vertexB.cpos, vertexB.rad, 
 			function(depth, bToA, distance){
@@ -808,7 +815,7 @@ var PositronCollider = {
 			,edgeRay, edgeLength, e, a, eDotE, sqArg, t, collisionDepth;
 
 		// INSTRUMENTATION
-		THWAP.Instrumentation.log('VCCollisionTests', [vertex, constraint]);
+		//THWAP.Instrumentation.log('VCCollisionTests', [vertex, constraint]);
 
 		// early out, too far apart
 		if(diff2 > comboRad2){
@@ -912,7 +919,7 @@ var CollisionResolver = {
 		vertexB.eventCallbacks.onVertexCollisionResponse.call(vertexB, vertexA, velColl);
 
 		// INSTRUMENTATION
-		THWAP.Instrumentation.log('VVCollisionResponses', [vertexA, vertexB]);
+		//THWAP.Instrumentation.log('VVCollisionResponses', [vertexA, vertexB]);
 
 	}
 	,vertexVsConstraint: function(vertex, constraint, edgeRay, t, collisionDepth){
@@ -958,7 +965,7 @@ var CollisionResolver = {
 		constraint.eventCallbacks.onVertexCollisionResponse.call(constraint, vertex, velocity, collisionDepth);
 
 		// INSTRUMENTATION
-		THWAP.Instrumentation.log('VCCollisionResponses', [vertex, constraint]);
+		//THWAP.Instrumentation.log('VCCollisionResponses', [vertex, constraint]);
 
 		return vertex;
 	}

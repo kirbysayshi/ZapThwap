@@ -24,9 +24,9 @@ var  TWorld = new THWAP.World()
 	,tsInfo = $("#tsInfo")[0]
 	,tsStats = {}
 	,numZombies = 0
-	,maxZombies = 90
-	,zombieSize = 5
-	,zombieSpeed = 5000
+	,maxZombies = 100
+	,zombieSize = 2
+	,zombieSpeed = 500
 	,spawnInterval = 100
 	,timerRef = 0
 	,rampSlope = 300
@@ -93,12 +93,14 @@ var  TWorld = new THWAP.World()
 		return b;
 	})();	
 
-TWorld
-	.addBody(left)
-	.addBody(right);
-//
-left.moveTo([0,$cWorld[0].height - 100,0]);
-right.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0]);
+//TWorld
+//	.addBody(left)
+//	.addBody(right);
+
+left
+	.moveTo([0,$cWorld[0].height - 100,0]);
+right
+	.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0]);
 
 timerRef = setInterval(function(){
 	if(numZombies == maxZombies) { clearInterval(timerRef); return; }
