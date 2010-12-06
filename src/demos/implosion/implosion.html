@@ -39,8 +39,7 @@ for(i = 0; i < maxZombies; i++){
 			,flesh)
 		,z = new THWAP.Entities.SingleVertexBody(zombieSize);
 	
-	z
-		.moveTo(pos)
+	z.moveTo(pos)
 		.setPassiveFriction(0.01)
 		.setCollisionFriction(0)
 		.clist.forEach(function(c){
@@ -103,6 +102,14 @@ ZAP.CGLM.register(function priorityOne(dt, stats){
 		,'<br /> LAG: ' + stats.lag
 		//,'<br /> ITERATIONS: ' + iterations
 	].join('');
+	
+	// output instrumentation
+	var instr = THWAP.Instrumentation.thisStep,
+		instrS = '';
+	for(var p in instr){
+		instrS += "<br />" + p + ": " + instr[p].length;
+	}	
+	info.innerHTML += instrS;
 	
 	tsInfo.innerHTML = [
 		 'TS: ' + tsStats.delta
