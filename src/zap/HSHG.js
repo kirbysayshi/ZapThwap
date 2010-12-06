@@ -1,8 +1,10 @@
-//(function(root, undefined){
+// Hierarchical Spatial Hash Grid: HSHG
+(function(root, undefined){
 	
-
-
-var _hash_, _hashLength_, _subLevels_, _gridCellSizeCache_;
+var _hash_
+	,_hashLength_
+	,_subLevels_
+	,_gridCellSizeCache_;
 
 function resetSpatialHash(){
 	_hash_ = [];
@@ -22,6 +24,9 @@ function getSubdivisionLevel(longestEdgeLength){
 	return Math.ceil(Math.log(longestEdgeLength) / Math.LN2);
 }
 
+// gets the grid cell size given a subdivision level.
+// This plus the getSubdivisionLevel guarantees that for 2D, 
+// no object will span more than 4 cells.
 function getGridCellSize(subdivisionLevel){
 	var sl = _gridCellSizeCache_[subdivisionLevel];
 	if(sl !== undefined){
@@ -31,37 +36,44 @@ function getGridCellSize(subdivisionLevel){
 	}
 }
 
-function toHash(x, y, /*z,*/ l, m){
+// given an (x, y), subdivision level, and length of the hash (basically
+// the number of bodies being hashed), computes a hash used to construct
+// the spatial grid 
+function toHash(x, y, l, m){
 	var hash = x * 73856093;
 	hash = hash ^ (y * 19349663);
-	//hash = hash ^ (z * 83492791);
 	hash = hash ^ (l * 67867979);
 	return Math.abs(hash % m);
 }
 
 function mapScene(objArr){
 	var i = 0, length = objArr.length
-		,obj, l, s, hLocMin, hLocMax, hLocTopRight, hLocBottomLeft, gridCellSize
+		,obj, subLevel, s
+		,hLocMin, hLocMax, hLocTopRight, hLocBottomLeft
+		,gridCellSize
 		,minHashCell, maxHashCell;
 	
+	// set global length for later hash translations
 	_hashLength_ = length;
 	
 	for(; i < length; i++){
 		obj = objArr[i];
-		aabb = obj.computeAABB();
+		aabb = obj.getAABB();
 		
 		s = getLongestAABBEdge( aabb.min, aabb.max );
-		l = getSubdivisionLevel( s );
+		subLevel = getSubdivisionLevel( s );
 		
 		// store subdivision level
-		_subLevels_[l] = true;
+		_subLevels_[subLevel] = true;
 		
-		gridCellSize = getGridCellSize( l );
+		// the grid cell size is guaranteed to be able to contain
+		// the aabb given, thus any object will fit within no more
+		// than 4 grid cells for a given subdivision level.
+		gridCellSize = getGridCellSize( subLevel );
 		hLocMin = toHash(
 			 Math.floor(aabb.min[0] / gridCellSize)
 			,Math.floor(aabb.min[1] / gridCellSize)
-			//,0
-			,l
+			,subLevel
 			,length
 		);
 		
@@ -71,13 +83,12 @@ function mapScene(objArr){
 
 		//console.log('"' + obj.name + '" minHash: ' + hLocMin
 		//	+ ', cell size: ' + gridCellSize 
-		//	+ ', subdivision: ' + l);
+		//	+ ', subdivision: ' + subLevel);
 	}
 }
 
-function findCandidatesForPoint(point){
-	var  i = 0
-		,j
+function findCandidatesForPointAtGridLevel(point, level){
+	var  i = level, j
 		,subLevels = _subLevels_
 		,subLLength = subLevels.length
 		,gridCellSize
@@ -88,9 +99,15 @@ function findCandidatesForPoint(point){
 		,hLocTL, hLocTR, hLocBR, hLocBL;
 	
 	for(; i < subLLength; i++){
-		l = subLevels[i];
-		if(l === true){
+		// if i is a valid level
+		if(subLevels[i] === true){
 			gridCellSize = getGridCellSize(i);
+			
+			// since all objects per a subdivision level are bound
+			// by at most 4 cells, and assuming the top left (minimum)
+			// point of the AABB was used to compute the object hash, we manually 
+			// query the four possible cells the object could be in to find
+			// those candidates that exist in those cells.
 			
 			// Top Left is the registration
 			hLocTL = toHash(
@@ -102,7 +119,7 @@ function findCandidatesForPoint(point){
 			
 			// top right hash
 			hLocTR = toHash(
-				 Math.floor(point[0] + gridCellSize / gridCellSize)
+				 Math.floor((point[0] + gridCellSize) / gridCellSize)
 				,Math.floor(point[1] / gridCellSize)
 				,i // level is the index
 				,hashLength
@@ -110,8 +127,8 @@ function findCandidatesForPoint(point){
 			
 			// bottom right hash
 			hLocBR = toHash(
-				 Math.floor(point[0] + gridCellSize / gridCellSize)
-				,Math.floor(point[1] + gridCellSize / gridCellSize)
+				 Math.floor((point[0] + gridCellSize) / gridCellSize)
+				,Math.floor((point[1] + gridCellSize) / gridCellSize)
 				,i // level is the index
 				,hashLength
 			);
@@ -119,7 +136,7 @@ function findCandidatesForPoint(point){
 			// bottom left hash
 			hLocBL = toHash(
 				 Math.floor(point[0] / gridCellSize)
-				,Math.floor(point[1] + gridCellSize / gridCellSize)
+				,Math.floor((point[1] + gridCellSize) / gridCellSize)
 				,i // level is the index
 				,hashLength
 			);
@@ -166,6 +183,7 @@ function findCandidatesForPoint(point){
 	return candidates;
 }
 
+// this is broken right now
 function findCandidatesForAABB(aabb){
 	var  i = 0
 		,subLevels = _subLevels_
@@ -191,7 +209,7 @@ function findCandidatesForAABB(aabb){
 	}
 }
 
-function drawHGrid(ctx, startDim, endDim){
+function drawGrid(ctx, startDim, endDim){
 	var subLevels = _subLevels_
 		,subLevelsLength = subLevels.length
 		,i, j, k
@@ -200,8 +218,7 @@ function drawHGrid(ctx, startDim, endDim){
 		,rgb = [1, 1, 1];
 	
 	ctx.lineWidth = 1;
-	
-	
+		
 	for(i = 0; i < subLevelsLength; i++){
 		subLevel = subLevels[i];
 		
@@ -214,7 +231,10 @@ function drawHGrid(ctx, startDim, endDim){
 		rgb[1] = 100;//255 * Math.random();
 		rgb[2] = 100;//255 * Math.random();
 		
-		ctx.strokeStyle = 'rgba(' + ~~rgb[0] + ',' + ~~rgb[1] + ',' + ~~rgb[2] + ',0.2)';
+		ctx.strokeStyle = 'rgba(' 
+			+ ~~rgb[0] + ',' 
+			+ ~~rgb[1] + ',' 
+			+ ~~rgb[2] + ',0.2)';
 		
 		// x
 		for(j = ~~(startDim[0] / gridCellSize); j < endDim[0]; j += gridCellSize){
@@ -231,34 +251,25 @@ function drawHGrid(ctx, startDim, endDim){
 	}	
 }
 
+root['HSHG'] = {
+	 mapScene: mapScene
+	,reset: resetSpatialHash
+	,findCandidatesForPointAtGridLevel: findCandidatesForPointAtGridLevel
+	,drawGrid: drawGrid
+	// mostly just for testing, should not be used except for getting status
+	,_private: function(){
+	 	return {
+			hash: _hash_
+			,hashLength: _hashLength_
+			,subLevels: _subLevels_
+			,gridCellSizeCache: _gridCellSizeCache_
 
-
-//})(this);
-
-function Vertex(args /*x, y, radius*/){
-	var argProp;
-	
-	for(argProp in args){
-		if(args.hasOwnProperty(argProp)){
-			this[ argProp ] = args[argProp]; 
+			,getLongestAABBEdge: getLongestAABBEdge
+			,getSubdivisionLevel: getSubdivisionLevel
+			,getGridCellSize: getGridCellSize
+			,toHash: toHash
 		}
 	}
 }
 
-Vertex.prototype.computeAABB = function(){
-	var rad = this.radius
-		,x = this.x
-		,y = this.y;
-	return this.aabb = { 
-		 min: [ x - rad, y - rad ]
-		,max: [ x + rad, y + rad ]
-	};
-}
-
-Vertex.prototype.draw = function(ctx, color){
-	ctx.strokeStyle = color;
-	ctx.beginPath();
-	ctx.arc( this.x, this.y, this.radius, 0, Math.PI*2, false);
-	ctx.strokeRect(this.aabb.min[0], this.aabb.min[1], this.radius*2, this.radius*2);
-	ctx.stroke();
-}
+})(this);
