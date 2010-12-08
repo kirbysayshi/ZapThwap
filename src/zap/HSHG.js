@@ -1,4 +1,19 @@
 // Hierarchical Spatial Hash Grid: HSHG
+
+// Ceased development using this specific version of the algorithm
+// because it's fundamentally based on having two separate classes
+// of objects, such as tetrahedrons (bodies) and vertices. You're
+// supposed to map the vertices in the first pass, and then compute
+// what grid cells the body covers, and then collide all vertices
+// that are in those cells with the body. You'd need to use a lookup 
+//table to not duplicate reported collisions. For a Particle vs Body
+// detection, this would be perfect, but not for body vs body. In 
+// other words, if everything is supposed to collide with everything
+// (or at least most things) then this method won't work, because 
+// most of the time would be spent checking if a collision was already
+// reported. There's no way to reliably traverse the "grid" (1D array)
+// without checking for duplicates.
+
 (function(root, undefined){
 	
 var _hash_

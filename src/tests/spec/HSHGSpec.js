@@ -30,7 +30,7 @@ describe('HSHG', function(){
 		
 		for(i = 50; i < 100; i++){
 			vs.push(new Vertex({
-				name: i, x: 20*i, y: 30, radius: 10
+				name: i, x: 20*i, y: 100, radius: 70
 			}));
 		}
 		

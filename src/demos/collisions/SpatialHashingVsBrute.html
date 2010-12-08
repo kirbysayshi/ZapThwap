@@ -10,8 +10,39 @@
 		<div id="tsInfo"></div>
 		<script type="text/javascript" src="../../lib/jquery-1.4.2.min.js"></script>
 		
-		<script src="../../zap/hsh.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/HSHG.js" type="text/javascript" charset="utf-8"></script>
 		<script type="text/javascript">
+
+// used to outline the interface th HSHG expects
+function Vertex(args /*x, y, radius*/){
+	var argProp;
+
+	for(argProp in args){
+		if(args.hasOwnProperty(argProp)){
+			this[ argProp ] = args[argProp]; 
+		}
+	}
+}
+
+Vertex.prototype.getAABB = function(){
+	var rad = this.radius
+		,x = this.x
+		,y = this.y;
+	return this.aabb = { 
+		 min: [ x - rad, y - rad ]
+		,max: [ x + rad, y + rad ]
+	};
+}
+
+Vertex.prototype.draw = function(ctx, color){
+	ctx.strokeStyle = color;
+	ctx.beginPath();
+	ctx.arc( this.x, this.y, this.radius, 0, Math.PI*2, false);
+	ctx.strokeRect(this.aabb.min[0], this.aabb.min[1], this.radius*2, this.radius*2);
+	ctx.stroke();
+}
+
+
 var  $cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,tsInfo = $("#tsInfo")[0]
@@ -38,6 +69,22 @@ var  $cWorld = $("#cvsWorld")
 			name: 'right', x: 200, y: 100, radius: 10
 		})
 	]
+	,oneHundredVs = (function(){
+		var i = 0, vs = [];
+		for(; i < 50; i++){
+			vs.push(new Vertex({
+				name: i, x: 18*i, y: 10, radius: 10
+			}));
+		}
+		
+		for(i = 0; i < 50; i++){
+			vs.push(new Vertex({
+				name: i, x: (70+50)*i, y: 100, radius: 50
+			}));
+		}
+		
+		return vs;
+	})()
 	,threeTestPoint = [5, 0]
 	,maxBodies = 2
 	,maxRadius = 600
@@ -68,105 +115,14 @@ var  $cWorld = $("#cvsWorld")
 //drawPoint(threeTestPoint[0], threeTestPoint[1]);
 //drawHGrid(ctx, [0,0,0], [1000,1000,0]);
 
+HSHG.reset();
+HSHG.mapScene( oneHundredVs );
+var p = HSHG._private();
+console.log(p);
+HSHG.drawGrid(ctx, [0,0], [1000,1000]);
+oneHundredVs.forEach(function(e){ e.draw(ctx, 'rgba(142,142,142,0.5)'); });
+testCollisions( p.hash, oneHundredVs );
 
-resetSpatialHash();
-
-while(leftToSpawn > 0){
-	randomBodies.push(
-		new Vertex({
-			name: '', 
-			x: (Math.random() * (maxDim[0] - minDim[0])) + minDim[0], 
-			y: (Math.random() * (maxDim[1] - minDim[1])) + minDim[1], 
-			radius: (Math.random() * (maxRadius - minRadius)) + minRadius
-		})
-	);
-	leftToSpawn -= 1;
-}
-
-
-var iterations = 10;
-
-// HSH scene
-
-mapScene(randomBodies);
-var candidatesCount = [];
-var candidates = [];
-var avgCandidatesPerRun = 0;
-var minMaxCandidates = [maxBodies,0]
-var avgCollisions = 0;
-
-var start = +new Date();
-for(var i = 0; i < iterations; i++){
-	mapScene(randomBodies);
-	//collide everything
-	candidates = [];
-	for(var j = 0; j < maxBodies; j++){
-		var body1 = randomBodies[j];
-		var colliding = [];
-		var cs = findCandidatesForPoint([body1.x, body1.y]);
-		candidatesCount.push(cs.length);
-		for(var l = 0; l < cs.length; l++){
-			var body2 = cs[l];
-			var dist2 = body1.x*body2.x + body1.y*body2.y;
-			if(dist2 < (body1.radius+body2.radius)*(body1.radius+body2.radius)){
-				//bCandidates.push(body2);
-				avgCollisions += 1;
-			}
-		}
-	}
-	var total = 0;
-	for(var k = 0; k < maxBodies; k++){
-		total += candidatesCount[k];
-		minMaxCandidates[0] = Math.min(candidatesCount[k], minMaxCandidates[0]);
-		minMaxCandidates[1] = Math.max(candidatesCount[k], minMaxCandidates[1]);
-	}
-	
-	avgCandidatesPerRun += total;
-}
-var end = +new Date();
-console.log('map avg time: ' + ((end - start) / iterations) + 'ms');
-console.log('avg candidates per run: ' + (avgCandidatesPerRun / iterations));
-console.log('min/max candidates: ' + minMaxCandidates[0] + '/' + minMaxCandidates[1]);
-console.log('avg collisions: ' + (avgCollisions / iterations));
-
-
-drawHGrid(ctx, [0,0,0], [1000,1000,0]);
-randomBodies.forEach(function(e){ e.draw(ctx, 'rgba(255,255,255,0.5)'); });
-
-// brute force scene
-var candidates = [];
-var avgCandidatesPerRun = 0;
-var minMaxCandidates = [maxBodies, 0];
-for(var i = 0; i < iterations; i++){
-	mapScene(randomBodies);
-	//collide everything
-	candidates = [];
-	for(var j = 0; j < maxBodies; j++){
-		var body1 = randomBodies[j];
-		var bCandidates = []
-		for(var l = j+1; l < maxBodies; l++){
-			var body2 = randomBodies[l];
-			var dist2 = body1.x*body2.x + body1.y*body2.y;
-			if(dist2 < (body1.radius+body2.radius)*(body1.radius+body2.radius)){
-				bCandidates.push(body2);
-			}
-		}
-		candidates.push(bCandidates.length);
-	}
-	var total = 0;
-	for(var k = 0; k < maxBodies; k++){
-		total += candidates[k];
-		minMaxCandidates[0] = Math.min(candidates[k], minMaxCandidates[0]);
-		minMaxCandidates[1] = Math.max(candidates[k], minMaxCandidates[1]);
-	}
-	
-	avgCandidatesPerRun += total;
-}
-var end = +new Date();
-
-console.log('brute avg time: ' + ((end - start) / iterations) + 'ms');
-console.log('avg candidates per run: ' + (avgCandidatesPerRun / iterations));
-console.log('min/max candidates: ' + minMaxCandidates[0] + '/' + minMaxCandidates[1]);
 
 function areEqual(name, a, b){
 	if( a !== b){
@@ -181,6 +137,63 @@ function drawPoint(x, y, color){
 	ctx.fillStyle = 'rgba(142,142,255,0.5)';
 	ctx.arc( x, y, 10, 0, Math.PI*2, false);
 	ctx.fill();
+}
+
+function testCollisions(hash, allBodies){
+	var ib = 0, iv1 = 0, iv2 = 0, bucket, v1, v2
+		,collisions = [], overkill = [], hashCollisionCount = 0, bruteCollisionCount = 0
+		,diffX, diffY, dist, radius2;
+
+	for(; ib < hash.length; ib++){
+		if(collisions[ib] == undefined) collisions[ib] = 0;
+		if(overkill[ib] == undefined) overkill[ib] = [];
+		bucket = hash[ib];
+		if(bucket !== undefined)
+		for(iv1 = 0; iv1 < bucket.length; iv1++){
+			v1 = bucket[iv1];
+			for(iv2 = iv1+1; iv2 < bucket.length; iv2++){
+				v2 = bucket[iv2];
+				diffX = v2.x - v1.x;
+				diffY = v2.y - v1.y;
+				dist = Math.sqrt(diffX*diffX + diffY*diffY);
+				radius2 = (v1.radius+v2.radius);
+				if( dist < radius2 ){
+					collisions[ib] += 1;
+					hashCollisionCount += 1;
+				} else if ( dist > radius2 * 1.2){
+					overkill[ib].push(dist);
+				}
+			}
+		}
+	}
+	
+	console.log(collisions);
+	console.log(overkill);
+	
+	console.log('hashed collisions detected: ' + hashCollisionCount);
+	
+	var total = 0;
+	overkill.forEach(function(obj){
+		total += obj.length;
+	});
+	console.log('total overkill: ' + total);
+	
+	for(iv1 = 0; iv1 < allBodies.length; iv1++){
+		v1 = allBodies[iv1];
+		for(iv2 = iv1+1; iv2 < allBodies.length; iv2++){
+			v2 = allBodies[iv2];
+			
+			diffX = v2.x - v1.x;
+			diffY = v2.y - v1.y;
+			dist = Math.sqrt(diffX*diffX + diffY*diffY);
+			radius2 = (v1.radius+v2.radius);
+			if( dist < radius2 ){
+				bruteCollisionCount += 1;
+			}
+		}
+	}
+	
+	console.log('brute collisions detected: ' + bruteCollisionCount);
 }
 		</script>
 	</body>
