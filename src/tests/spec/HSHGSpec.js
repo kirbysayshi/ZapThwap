@@ -20,6 +20,22 @@ describe('HSHG', function(){
 			name: 'right', x: 200, y: 100, radius: 10
 		})
 	]
+	,oneHundredVs = (function(){
+		var i = 0, vs = [];
+		for(; i < 50; i++){
+			vs.push(new Vertex({
+				name: i, x: 10*i, y: 10, radius: 10
+			}));
+		}
+		
+		for(i = 50; i < 100; i++){
+			vs.push(new Vertex({
+				name: i, x: 20*i, y: 30, radius: 10
+			}));
+		}
+		
+		return vs;
+	})()
 	
 	it('can reset itself', function(){
 		HSHG.reset();
@@ -60,9 +76,17 @@ describe('HSHG', function(){
 		HSHG.reset();
 		HSHG.mapScene( twoVs );
 		var c = HSHG.findCandidatesForPointAtGridLevel([300,0], 7);
+		//console.log(c);
 		expect(c.length).toBe(0);
 		expect(c).not.toContain(twoVs[0]);
 		expect(c).not.toContain(twoVs[1]);
+	});
+	
+	it('can map 100 objects', function(){
+		HSHG.reset();
+		HSHG.mapScene( oneHundredVs );
+		var p = HSHG._private();
+		console.log(p);
 	});
 	
 });
