@@ -1,97 +1,66 @@
 describe('HSHG', function(){
 	
-	var 
-	twoVs = [
-		 new Vertex({
-			name: 'left', x: 0, y: 0, radius: 50
-		})
-		,new Vertex({
-			name: 'right', x: 50, y: 0, radius: 50
-		})
-	]
-	,threeVs = [
-		 new Vertex({
-			name: 'left', x: 100, y: 100, radius: 10
-		})
-		,new Vertex({
-			name: 'middle', x: 150, y: 150, radius: 100
-		})
-		,new Vertex({
-			name: 'right', x: 200, y: 100, radius: 10
-		})
-	]
-	,oneHundredVs = (function(){
-		var i = 0, vs = [];
-		for(; i < 50; i++){
-			vs.push(new Vertex({
-				name: i, x: 10*i, y: 10, radius: 10
-			}));
-		}
+	it('can make a 4x4 Grid with proper offsets', function(){
+		var p = HSHG._private();
+		var grid = new p.Grid(20, 16);
 		
-		for(i = 50; i < 100; i++){
-			vs.push(new Vertex({
-				name: i, x: 20*i, y: 100, radius: 70
-			}));
-		}
+		expect(grid.rowColumnCount).toBe(4);
+		grid.initCells();
 		
-		return vs;
-	})()
-	
-	it('can reset itself', function(){
-		HSHG.reset();
-		var p = HSHG._private();
-		expect(p.hash.length).toBe(0);
-		expect(p.hashLength).toBe(0);
-		expect(p.subLevels.length).toBe(0);
-		expect(p.gridCellSizeCache.length).toBe(0);
+		//  null	4		5		||	6	7	8
+		//  null	0		1		||	3	4	5
+		//  null	null	null	||	0	1	2
+		expect(grid.allCells[0].neighborOffsetArray).toEqual([
+			null, null, null, null, 0, 1, null, 4, 5
+		]);
+		
+		expect(grid.allCells[4].neighborOffsetArray).toEqual([
+			null, -4, -3, null, 0, 1, null, 4, 5
+		]);
+		
+		console.log(grid.toHash(0,0));
+		console.log(grid.toHash(10,10));
+		console.log(grid.toHash(10,1000));
+		console.log(grid.toHash(10000,100));
+		
+		//expect(p.hash.length).toBe(0);
+		//expect(p.hashLength).toBe(0);
+		//expect(p.subLevels.length).toBe(0);
+		//expect(p.gridCellSizeCache.length).toBe(0);
+		console.log(grid);
 	});
 	
-	it('can map two vertices', function(){
-		HSHG.reset();
-		HSHG.mapScene( twoVs );
+	it('can add an object to the grid', function(){
+		var v1 = new Vertex({ x: 10, y: 1000, radius: 40 }),
+			p;
+			
+		HSHG.init();
+		HSHG.addObject(v1);
+		p = HSHG._private();
+		expect(p._grids.length).toBe(1);
+		expect(p._grids[0].occupiedCells.length).toBe(1);
+		console.log( HSHG._private() );
 	});
 	
-	it('can find two candidates for point [25,0] at level 7', function(){
-		HSHG.reset();
-		HSHG.mapScene( twoVs );
-		var c = HSHG.findCandidatesForPointAtGridLevel([25,0], 7);
-		expect(c.length).toBe(2);
-		expect(c).toContain(twoVs[0]);
-		expect(c).toContain(twoVs[1]);
+	it('can add three similar objects to the same grid', function(){
+		var v1 = new Vertex({ x: 10, y: 1000, radius: 40 }),
+		 	v2 = new Vertex({ x: 10, y: 1000, radius: 45 }),
+		 	v3 = new Vertex({ x: 10, y: 1000, radius: 50 }), 
+			p;
+			
+		HSHG.init();
+		HSHG.addObject(v1);
+		HSHG.addObject(v2);
+		HSHG.addObject(v3);
+		p = HSHG._private();
+		
+		expect(p._grids.length).toBe(1);
+		
+		console.log( HSHG._private() );
 	});
-	
-	it('puts a vertex at (0,0) with radius 50 into subdivision level 7, grid size 128, and finds longest edge to be 100', function(){
-		HSHG.reset();
-		var aabb = twoVs[0].getAABB();
-		var p = HSHG._private();
-		var longest = p.getLongestAABBEdge(aabb.min, aabb.max);
-		var level = p.getSubdivisionLevel(longest);
-		var gridCellSize = p.getGridCellSize(level);
-		expect(longest).toBe(100);
-		expect(level).toBe(7);
-		expect(gridCellSize).toBe(128);
-	});
-	
-	it('can find zero candidates for point [300,0] at level 7', function(){
-		HSHG.reset();
-		HSHG.mapScene( twoVs );
-		var c = HSHG.findCandidatesForPointAtGridLevel([300,0], 7);
-		//console.log(c);
-		expect(c.length).toBe(0);
-		expect(c).not.toContain(twoVs[0]);
-		expect(c).not.toContain(twoVs[1]);
-	});
-	
-	it('can map 100 objects', function(){
-		HSHG.reset();
-		HSHG.mapScene( oneHundredVs );
-		var p = HSHG._private();
-		console.log(p);
-	});
-	
 });
 
-// used to outline the interface th HSHG expects
+// used to outline the interface the HSHG expects
 function Vertex(args /*x, y, radius*/){
 	var argProp;
 	

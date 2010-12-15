@@ -1,31 +1,86 @@
 // Hierarchical Spatial Hash Grid: HSHG
 
-// Ceased development using this specific version of the algorithm
-// because it's fundamentally based on having two separate classes
-// of objects, such as tetrahedrons (bodies) and vertices. You're
-// supposed to map the vertices in the first pass, and then compute
-// what grid cells the body covers, and then collide all vertices
-// that are in those cells with the body. You'd need to use a lookup 
-//table to not duplicate reported collisions. For a Particle vs Body
-// detection, this would be perfect, but not for body vs body. In 
-// other words, if everything is supposed to collide with everything
-// (or at least most things) then this method won't work, because 
-// most of the time would be spent checking if a collision was already
-// reported. There's no way to reliably traverse the "grid" (1D array)
-// without checking for duplicates.
-
 (function(root, undefined){
 	
-var _hash_
-	,_hashLength_
-	,_subLevels_
-	,_gridCellSizeCache_;
+var  MAX_OBJECT_CELL_DENSITY = 1/8 // objects / cells
+	,INITIAL_GRID_LENGTH = 256 // 16x16
+	,HIERARCHY_FACTOR = 2
+	,HIERARCHY_FACTOR_SQRT = Math.SQRT2
+	,_grids;
 
-function resetSpatialHash(){
-	_hash_ = [];
-	_hashLength_ = 0;
-	_subLevels_ = [];
-	_gridCellSizeCache_ = [];
+//---------------------------------------------------------------------
+// GLOBAL FUNCTIONS
+//---------------------------------------------------------------------
+
+function init(){
+	_grids = [];
+}
+
+function addObject(obj){
+	var  x ,i
+		,cellSize
+		,objAABB = obj.getAABB()
+		,objSize = getLongestAABBEdge(objAABB.min, objAABB.max)
+		,oneGrid, newGrid;
+	
+	// for HSHG metadata
+	obj.HSHG = {};
+	
+	if(_grids.length == 0) {
+		// no grids exist yet
+		cellSize = objSize * HIERARCHY_FACTOR_SQRT;
+		newGrid = new Grid(cellSize, INITIAL_GRID_LENGTH);
+		newGrid.initCells();
+		newGrid.addObject(obj);
+		_grids.push(newGrid);
+		
+	} else {
+		x = 0;
+
+		// grids are sorted by cellSize, smallest to largest
+		for(i = 0; i < _grids.length; i++){
+			oneGrid = _grids[i];
+			x = oneGrid.cellSize;
+			if(objSize < x){
+				x = x / HIERARCHY_FACTOR;
+				if(objSize < x) {
+					while( objSize < x ) {
+						x = x / HIERARCHY_FACTOR;
+					}
+					newGrid = new Grid(x * HIERARCHY_FACTOR, INITIAL_GRID_LENGTH);
+					newGrid.initCells();
+					// assign obj to grid
+					newGrid.addObject(obj)
+					// insert grid into list of grids directly before oneGrid
+					_grids.splice(i, 0, newGrid);
+				} else {
+					// insert obj into grid oneGrid
+					oneGrid.addObject(obj);
+				}
+				return;
+			}
+		}
+		
+		while( objSize >= x ){
+			x = x * HIERARCHY_FACTOR;
+		}
+		
+		newGrid = new Grid(x, INITIAL_GRID_LENGTH);
+		newGrid.initCells();
+		// insert obj into grid
+		newGrid.addObject(obj)
+		// add newGrid as last element in grid list
+		_grids.push(newGrid);
+	}
+}
+
+
+function removeObject(obj){
+	
+}
+
+function updateObject(obj){
+	
 }
 
 function getLongestAABBEdge(min, max){
@@ -33,206 +88,6 @@ function getLongestAABBEdge(min, max){
 		Math.abs(max[0] - min[0]),
 		Math.abs(max[1] - min[1])
 	);
-}
-
-function getSubdivisionLevel(longestEdgeLength){
-	return Math.ceil(Math.log(longestEdgeLength) / Math.LN2);
-}
-
-// gets the grid cell size given a subdivision level.
-// This plus the getSubdivisionLevel guarantees that for 2D, 
-// no object will span more than 4 cells.
-function getGridCellSize(subdivisionLevel){
-	var sl = _gridCellSizeCache_[subdivisionLevel];
-	if(sl !== undefined){
-		return sl;
-	} else {
-		return _gridCellSizeCache_[subdivisionLevel] = Math.pow(2, subdivisionLevel);
-	}
-}
-
-// given an (x, y), subdivision level, and length of the hash (basically
-// the number of bodies being hashed), computes a hash used to construct
-// the spatial grid 
-function toHashFromCellCoords(x, y, l, m){
-	var hash = x * 73856093;
-	hash = hash ^ (y * 19349663);
-	hash = hash ^ (l * 67867979);
-	return Math.abs(hash % m);
-}
-
-function mapScene(objArr){
-	var i = 0, length = objArr.length
-		,obj, subLevel, s
-		,hLocMin, hLocMax, hLocTopRight, hLocBottomLeft
-		,gridCellSize
-		,minHashCell, maxHashCell
-		,gridX, gridY;
-	
-	// set global length for later hash translations
-	_hashLength_ = length;
-	
-	for(; i < length; i++){
-		obj = objArr[i];
-		aabb = obj.getAABB();
-		
-		s = getLongestAABBEdge( aabb.min, aabb.max );
-		subLevel = getSubdivisionLevel( s );
-		
-		// store subdivision level
-		_subLevels_[subLevel] = true;
-		
-		// the grid cell size is guaranteed to be able to contain
-		// the aabb given, thus any object will fit within no more
-		// than 4 grid cells for a given subdivision level.
-		gridCellSize = getGridCellSize( subLevel );
-		gridX = Math.floor(aabb.min[0] / gridCellSize);
-		gridY = Math.floor(aabb.min[1] / gridCellSize);
-		hLocMin = toHashFromCellCoords(
-			 gridX
-			,gridY
-			,subLevel
-			,length
-		);
-		
-		if(_hash_[hLocMin] == undefined){ _hash_[hLocMin] = []; }
-
-		_hash_[hLocMin].push(obj);
-
-		obj._HSHG = {
-			 hash: hLocMin
-			,subLevel: subLevel
-			,longestSide: s
-			,gridSize: gridCellSize
-			,gridCoords: '[' + gridX + ', ' + gridY + ']'
-		};
-
-		//console.log('"' + obj.name + '" minHash: ' + hLocMin
-		//	+ ', cell size: ' + gridCellSize 
-		//	+ ', subdivision: ' + subLevel);
-	}
-}
-
-function findCandidatesForPointAtGridLevel(point, level){
-	var  i = level, j
-		,subLevels = _subLevels_
-		,subLLength = subLevels.length
-		,gridCellSize
-		,candidates = []
-		,gridCell
-		,hash = _hash_
-		,hashLength = _hashLength_
-		,hLocTL, hLocTR, hLocBR, hLocBL;
-	
-	for(; i < subLLength; i++){
-		// if i is a valid level
-		if(subLevels[i] === true){
-			gridCellSize = getGridCellSize(i);
-			
-			// since all objects per a subdivision level are bound
-			// by at most 4 cells, and assuming the top left (minimum)
-			// point of the AABB was used to compute the object hash, we manually 
-			// query the four possible cells the object could be in to find
-			// those candidates that exist in those cells.
-			
-			// Top Left is the registration
-			hLocTL = toHashFromCellCoords(
-				 Math.floor(point[0] / gridCellSize)
-				,Math.floor(point[1] / gridCellSize)
-				,i // level is the index
-				,hashLength
-			);
-			
-			// top right hash
-			hLocTR = toHashFromCellCoords(
-				 Math.floor((point[0] + gridCellSize) / gridCellSize)
-				,Math.floor(point[1] / gridCellSize)
-				,i // level is the index
-				,hashLength
-			);
-			
-			// bottom right hash
-			hLocBR = toHashFromCellCoords(
-				 Math.floor((point[0] + gridCellSize) / gridCellSize)
-				,Math.floor((point[1] + gridCellSize) / gridCellSize)
-				,i // level is the index
-				,hashLength
-			);
-			
-			// bottom left hash
-			hLocBL = toHashFromCellCoords(
-				 Math.floor(point[0] / gridCellSize)
-				,Math.floor((point[1] + gridCellSize) / gridCellSize)
-				,i // level is the index
-				,hashLength
-			);
-			
-			// add top left candidates always
-			gridCell = hash[hLocTL];
-			if(gridCell !== undefined){
-				for(j = 0; j < gridCell.length; j++){
-					candidates.push( gridCell[j] );
-				}
-			}
-			
-			// add top right candidates if different from top left
-			if(hLocTR !== hLocTL){
-				gridCell = hash[hLocTR];
-				if(gridCell !== undefined){
-					for(j = 0; j < gridCell.length; j++){
-						candidates.push( gridCell[j] );
-					}
-				}
-			}
-			
-			// add bottom right candidates if different from top left and top right
-			if(hLocBR !== hLocTL && hLocBR !== hLocTR){
-				gridCell = hash[hLocBR];
-				if(gridCell !== undefined){
-					for(j = 0; j < gridCell.length; j++){
-						candidates.push( gridCell[j] );
-					}
-				}
-			}
-			
-			// add bottom left candidates if different from top left, top right, and bottom right
-			if(hLocBL !== hLocTL && hLocBL !== hLocTR && hLocBL !== hLocBR){
-				gridCell = hash[hLocBL];
-				if(gridCell !== undefined){
-					for(j = 0; j < gridCell.length; j++){
-						candidates.push( gridCell[j] );
-					}
-				}
-			}
-		}
-	}
-	return candidates;
-}
-
-// this is broken right now
-function findCandidatesForAABB(aabb){
-	var  i = 0
-		,subLevels = _subLevels_
-		,subLLength = subLevels.length
-		,l
-		,maxEdgeLength = getLongestAABBEdge(aabb.min, aabb.max)
-		,gridCellSize = getGridCellSize( maxEdgeLength )
-		,hLoc
-		,hLocs = [];
-	
-	for(; i < subLLength; i++){
-		l = subLevels[i];
-		if(l === true){
-			hLoc = toHashFromCellCoords(
-				 aabb.min[0] / gridCellSize
-				,aabb.min[1] / gridCellSize
-				//,0
-				,i // level is the index
-				,numBodies
-			);
-		}
-		
-	}
 }
 
 function drawGrid(ctx, startDim, endDim){
@@ -277,25 +132,211 @@ function drawGrid(ctx, startDim, endDim){
 	}	
 }
 
-root['HSHG'] = {
-	 mapScene: mapScene
-	,reset: resetSpatialHash
-	,findCandidatesForPointAtGridLevel: findCandidatesForPointAtGridLevel
-	,drawGrid: drawGrid
-	// mostly just for testing, should not be used except for getting status
-	,_private: function(){
-	 	return {
-			hash: _hash_
-			,hashLength: _hashLength_
-			,subLevels: _subLevels_
-			,gridCellSizeCache: _gridCellSizeCache_
+//---------------------------------------------------------------------
+// ENTITIES
+//---------------------------------------------------------------------
 
-			,getLongestAABBEdge: getLongestAABBEdge
-			,getSubdivisionLevel: getSubdivisionLevel
-			,getGridCellSize: getGridCellSize
-			,toHashFromCellCoords: toHashFromCellCoords
+/**
+ * Grid
+ *
+ * @constructor
+ * @param  int cellSize  the pixel size of each cell of the grid
+ * @param  int  cellCount  the total number of cells for the grid (width x height)
+ * @return  void
+ */
+function Grid(cellSize, cellCount){
+	this.cellSize = cellSize;
+	this.inverseCellSize = 1/cellSize;
+	this.rowColumnCount = ~~Math.sqrt(cellCount);
+	this.xyHashMask = this.rowColumnCount - 1;
+	this.occupiedCells = [];
+	this.allCells = Array(this.rowColumnCount*this.rowColumnCount);
+	this.sharedInnerOffsets = [];
+	this.totalObjects = 0;
+}
+
+Grid.prototype.initCells = function(){
+	
+	// TODO: inner/unique offset rows 0 and 2 may need to be
+	// swapped due to +y being "down" vs "up"
+	
+	var  i, gridLength = this.allCells.length
+		,x, y
+		,wh = this.rowColumnCount
+		,isOnRightEdge, isOnLeftEdge, isOnTopEdge, isOnBottomEdge
+		,innerOffsets = [ 
+			-1 + -wh, -wh, -wh + 1,
+			-1, 0, 1,
+			wh - 1, wh, wh + 1
+		]
+		,uniqueOffsets = []
+		,cell;
+	
+	this.sharedInnerOffsets = innerOffsets;
+	
+	// init all cells, creating offset arrays as needed
+	
+	for(i = 0; i < gridLength; i++){
+		
+		cell = new Cell();
+		// compute row (y) and column (x) for an index
+		y = ~~(i / this.rowColumnCount);
+		x = ~~(i - (y*this.rowColumnCount))
+		
+		// reset / init
+		isOnRightEdge = false;
+		isOnLeftEdge = false;
+		isOnTopEdge = false;
+		isOnBottomEdge = false;
+		
+		// right or left edge cell
+		if(x+1 % this.rowColumnCount == 0){ isOnRightEdge = true; }
+		else if(x % this.rowColumnCount == 0){	isOnLeftEdge = true; }
+		
+		// top or bottom edge cell
+		if(y+1 % this.rowColumnCount == 0){ isOnTopEdge = true; }
+		else if(y % this.rowColumnCount == 0){ isOnBottomEdge = true; }
+		
+		// if cell is edge cell, use unique offsets, otherwise use inner offsets
+		if(isOnRightEdge || isOnLeftEdge || isOnTopEdge || isOnBottomEdge){
+			uniqueOffsets = [ 
+				isOnLeftEdge || isOnBottomEdge ? null : -1 + -wh, isOnBottomEdge ? null : -wh, isOnRightEdge || isOnBottomEdge ? null : -wh + 1,
+				isOnLeftEdge ? null : -1, 0, isOnRightEdge ? null : 1,
+				isOnLeftEdge || isOnTopEdge ? null : wh - 1, isOnTopEdge ? null : wh, isOnRightEdge || isOnTopEdge ? null : wh + 1
+			];
+			cell.neighborOffsetArray = uniqueOffsets;
+		} else {
+			cell.neighborOffsetArray = this.sharedInnerOffsets;
 		}
+		
+		this.allCells[i] = cell;
 	}
+}
+
+Grid.prototype.toHash = function(x, y){
+	var i, xHash, yHash;
+	
+	if(x < 0){
+		i = (-x) * this.inverseCellSize;
+		xHash = this.rowColumnCount - 1 - ( ~~x & this.xyHashMask );
+	} else {
+		i = x * this.inverseCellSize;
+		xHash = ~~x & this.xyHashMask;
+	}
+	
+	if(y < 0){
+		i = (-y) * this.inverseCellSize;
+		yHash = this.rowColumnCount - 1 - ( ~~y & this.xyHashMask );
+	} else {
+		i = y * this.inverseCellSize;
+		yHash = ~~y & this.xyHashMask;
+	}
+	
+	return xHash + yHash * this.rowColumnCount;
+}
+
+Grid.prototype.addObject = function(obj){
+	var  objAABB = obj.getAABB()
+		,objHash = this.toHash(objAABB.min[0], objAABB.min[1])
+		,targetCell = this.allCells[objHash];
+	
+	if(targetCell.objectContainer === null){
+		// initialize container (this is probably not actually necessary)
+		targetCell.objectContainer = [];
+		// insert this cell into occupied cells list
+		targetCell.occupiedCellsIndex = this.occupiedCells.length;
+		this.occupiedCells.push(targetCell);
+	}
+	
+	// add meta data to obj, for fast update/removal
+	obj.HSHG.objectContainerIndex = targetCell.objectContainer.length;
+	obj.HSHG.hash = objHash;
+	obj.HSHG.grid = this;
+	// add obj to cell
+	targetCell.objectContainer.push(obj);
+	
+	// we can assume that the targetCell is already a member of the occupied list
+	
+	this.totalObjects += 1;
+	
+	// do test for grid density
+	if(this.totalObjects / this.allCells.length > MAX_OBJECT_CELL_DENSITY){
+		// grid must be increased in size
+		this.expandGrid();
+	}
+}
+
+Grid.prototype.expandGrid = function(){
+	var  i, j
+		,currentCellCount = this.allCells.length
+		,currentRowColumnCount = this.rowColumnCount
+		,currentXYHashMask = this.xyHashMask
+		,currentTotalObjects = this.totalObjects
+		
+		,newCellCount = currentCellCount * 4 // double each dimension
+		,newRowColumnCount = ~~Math.sqrt(newCellCount)
+		,newXYHashMask = newRowColumnCount - 1
+		,allObjects = []
+		,aCell
+		,push = Array.prototype.push;
+	
+	// make a list of all the objects
+	for(i = 0; i < this.occupiedCells.length; i++){
+		aCell = this.occupiedCells[i];
+		// this should be faster than concat
+		push.apply(allObjects, aCell.objectContainer);
+	}
+	
+	// reset grid values
+	this.rowColumnCount = newRowColumnCount;
+	this.allCells = Array(this.rowColumnCount*this.rowColumnCount);
+	this.xyHashMask = newXYHashMask;
+	this.totalObjects = 0;
+	
+	// initialize new cells
+	this.initCells();
+	
+	// re-add all objects to grid
+	for(i = 0; i < allObjects.length; i++){
+		this.addObject(allObjects[i]);
+	}
+}
+
+function Cell(){
+	this.objectContainer = null;
+	this.neighborOffsetArray;
+	this.occupiedCellsIndex = null;
+}
+
+//---------------------------------------------------------------------
+// EXPORTS
+//---------------------------------------------------------------------
+
+root['HSHG'] = {
+	// mapScene: mapScene
+	//,reset: resetSpatialHash
+	//,findCandidatesForPointAtGridLevel: findCandidatesForPointAtGridLevel
+	//,drawGrid: drawGrid
+	//// mostly just for testing, should not be used except for getting status
+	//,_private: function(){
+	// 	return {
+	//		hash: _hash_
+	//		,hashLength: _hashLength_
+	//		,subLevels: _subLevels_
+	//		,gridCellSizeCache: _gridCellSizeCache_
+    //
+	//		,getLongestAABBEdge: getLongestAABBEdge
+	//		,getSubdivisionLevel: getSubdivisionLevel
+	//		,getGridCellSize: getGridCellSize
+	//		,toHashFromCellCoords: toHashFromCellCoords
+	//	}
+	//}
+	init: init
+	,addObject: addObject
+	,_private: function(){ return {
+		 Grid: Grid
+		,_grids: _grids
+	}}
 }
 
 })(this);
