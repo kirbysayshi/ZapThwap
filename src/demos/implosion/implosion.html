@@ -52,6 +52,7 @@ for(i = 0; i < maxZombies; i++){
 	
 //var bounds = new THWAP.Entities.BoundsBox([10,10,0], [590,590,0]);
 //TWorld.addBody(bounds);
+TWorld.handleCollisions = false;
 
 KEY.listen(function(down){
 	if(down[27].delta > 0){ ZAP.CGLM.stop(); }

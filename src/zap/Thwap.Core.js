@@ -20,6 +20,7 @@ function World(){
 	this.clist = []; // constraint list
 	this.blist = []; // body list, only used for collisions/orientations?
 	this.lastdt = 0.016;
+	this.handleCollisions = true;
 }
 World.prototype.addVertex = function(v){
 	if(this.vlist.indexOf(v) === -1){
@@ -75,14 +76,17 @@ World.prototype.step = function(dt){
 		c--;
 	}
 
-	// update body orientations, bounding spheres, collide all bodies
+	// update body orientations, bounding spheres/boxes, collide all bodies
 	while(b >= 0){
 		var body = this.blist[b]
 			.computeOrientationMatrix()
-			.computeBoundingSphere();
-			
-		for(var i = b - 1; i >= 0; i--){
-			body.collideWithBody(this.blist[i]);
+			.computeBoundingSphere()
+			.computeBoundingBox();
+		
+		if( this.handleCollisions === true ){
+			for(var i = b - 1; i >= 0; i--){
+				body.collideWithBody(this.blist[i]);
+			}
 		}
 		
 		b--;
@@ -465,6 +469,7 @@ function Body(){
 	this.rotation = 0;
 	this.boundingPos = vec3.create([0,0,0]);
 	this.boundingRad = 0;
+	this.aabb = this.computeBoundingBox();
 	//this.dirty = true; // let's optimize later
 }
 Body.prototype.computeOrientationMatrix = function(){
@@ -584,6 +589,39 @@ Body.prototype.computeBoundingSphere = function(){
 		vec3.scale(vec3.subtract(max, min, vec3.create()), 0.5)
 	);
 	return this;
+}
+Body.prototype.computeBoundingBox = function(){
+	
+	var i
+		,vlist = this.vlist
+		,min = [ Number.MAX_VALUE,  Number.MAX_VALUE,  Number.MAX_VALUE]
+		,max = [-Number.MAX_VALUE, -Number.MAX_VALUE, -Number.MAX_VALUE]
+		,pAABB
+		,pMin
+		,pMax;
+	
+	for(i = 0; i < vlist.length; i++){
+		pAABB = vlist[i].getBoundingBox();
+		pMin = pAABB.min;
+		pMax = pAABB.max;
+		
+		if (pMin[0] < min[0]) min[0] = pMin[0];
+		if (pMin[1] < min[1]) min[1] = pMin[1];
+		if (pMin[2] < min[2]) min[2] = pMin[2];
+                                           
+		if (pMax[0] > max[0]) max[0] = pMax[0];
+		if (pMax[1] > max[1]) max[1] = pMax[1];
+		if (pMax[2] > max[2]) max[2] = pMax[2];
+	}
+	
+	this.aabb = {
+		min: pMin, max: pMax
+	};
+	
+	return this;
+}
+Body.prototype.getAABB = function(){
+	return this.aabb;
 }
 Body.prototype.collideWithBody = function(body){
 	
