@@ -6,7 +6,9 @@ var  MAX_OBJECT_CELL_DENSITY = 1/8 // objects / cells
 	,INITIAL_GRID_LENGTH = 256 // 16x16
 	,HIERARCHY_FACTOR = 2
 	,HIERARCHY_FACTOR_SQRT = Math.SQRT2
-	,_grids;
+	,UPDATE_METHOD = update_RECOMPUTE // or update_REMOVEALL
+	,_grids
+	,_globalObjects;
 
 //---------------------------------------------------------------------
 // GLOBAL FUNCTIONS
@@ -14,6 +16,7 @@ var  MAX_OBJECT_CELL_DENSITY = 1/8 // objects / cells
 
 function init(){
 	_grids = [];
+	_globalObjects = [];
 }
 
 function addObject(obj){
@@ -24,7 +27,12 @@ function addObject(obj){
 		,oneGrid, newGrid;
 	
 	// for HSHG metadata
-	obj.HSHG = {};
+	obj.HSHG = {
+		globalObjectsIndex: _globalObjects.length
+	};
+	
+	// add to global object array
+	_globalObjects.push(obj);
 	
 	if(_grids.length == 0) {
 		// no grids exist yet
@@ -32,8 +40,8 @@ function addObject(obj){
 		newGrid = new Grid(cellSize, INITIAL_GRID_LENGTH);
 		newGrid.initCells();
 		newGrid.addObject(obj);
-		_grids.push(newGrid);
 		
+		_grids.push(newGrid);	
 	} else {
 		x = 0;
 
@@ -44,6 +52,7 @@ function addObject(obj){
 			if(objSize < x){
 				x = x / HIERARCHY_FACTOR;
 				if(objSize < x) {
+					// find appropriate size
 					while( objSize < x ) {
 						x = x / HIERARCHY_FACTOR;
 					}
@@ -74,13 +83,182 @@ function addObject(obj){
 	}
 }
 
-
 function removeObject(obj){
+	var  meta = obj.HSHG
+		,globalObjectsIndex;
+	
+	if(meta === undefined){
+		throw Error( obj + ' was not in the HSHG.' );
+		return;
+	}
+	
+	// remove object from global object list
+	globalObjectsIndex = meta.globalObjectsIndex
+	if(globalObjectsIndex === _globalObjects.length - 1){
+		_globalObjects.pop();
+	} else {
+		_globalObjects[ globalObjectsIndex ] = _globalObjects.pop();
+	}
+	
+	meta.grid.removeObject(obj);
+	
+	// remove meta data
+	delete obj.HSHG;
+}
+
+function update(){
+	UPDATE_METHOD();
+}
+
+/**
+ * Updates every object's position in the grid, but only if
+ * the hash value for that object has changed.
+ * This method DOES NOT take into account object expansion or
+ * contraction, just position, and does not attempt to change 
+ * the grid the object is currently in; it only (possibly) changes
+ * the cell.
+ *
+ * If the object has significantly changed in size, the best bet is to
+ * call removeObject() and addObject() sequentially, outside of the 
+ * normal update cycle of HSHG.
+ *
+ * @return  void   desc
+ */
+function update_RECOMPUTE(){
+		
+	var i
+		,obj
+		,grid
+		,meta
+		,objAABB
+		,newObjHash;
+	
+	// for each object
+	for(i = 0; i < _globalObjects.length; i++){
+		obj = _globalObjects[i];
+		meta = obj.HSHG;
+		grid = meta.grid;
+		
+		// recompute hash
+		objAABB = obj.getAABB();
+		newObjHash = grid.toHash(objAABB.min[0], objAABB.min[1]);
+		
+		if(newObjHash !== meta.hash){
+			// grid position has changed, update!
+			grid.removeObject(obj);
+			grid.addObject(obj, newObjHash);
+		} 
+	}		
+}
+
+function update_REMOVEALL(){
 	
 }
 
-function updateObject(obj){
+function queryForCollisionPairs(broadOverlapTest){
 	
+	var i, j, k, l, c
+		,grid
+		,cell
+		,objA
+		,objB
+		,offset
+		,adjacentCell
+		,biggerGrid
+		,objAAABB
+		,objAHashInBiggerGrid
+		,possibleCollisions = []
+	
+	// default broad test to internal aabb overlap test
+	broadOverlapTest = broadOverlapTest || testAABBOverlap;
+	
+	// for all grids ordered by cell size ASC
+	for(i = 0; i < _grids.length; i++){
+		grid = _grids[i];
+		
+		// for each cell of the grid that is occupied
+		for(j = 0; j < grid.occupiedCells.length; j++){
+			cell = grid.occupiedCells[j];
+			
+			// collide all objects within the occupied cell
+			for(k = 0; k < cell.objectContainer.length; k++){
+				objA = cell.objectContainer[k];
+				for(l = k+1; l < cell.objectContainer.length; l++){
+					objB = cell.objectContainer[l];
+					if(broadOverlapTest(objA, objB) === true){
+						possibleCollisions.push( [ objA, objB ] );
+					}
+				}
+			}
+			
+			// for the first half of all adjacent cells (offset 4 is the current cell)
+			for(c = 0; c < 4; c++){
+				offset = cell.neighborOffsetArray[c];
+				
+				if(offset === null) { continue; }
+				
+				adjacentCell = grid.allCells[ cell.allCellsIndex + offset ];
+				
+				// collide all objects in cell with adjacent cell
+				for(k = 0; k < cell.objectContainer.length; k++){
+					objA = cell.objectContainer[k];
+					for(l = 0; l < adjacentCell.objectContainer.length; l++){
+						objB = adjacentCell.objectContainer[l];
+						if(broadOverlapTest(objA, objB) === true){
+							possibleCollisions.push( [ objA, objB ] );
+						}
+					}
+				}
+			}
+		}
+		
+		// forall objects that are stored in this grid
+		for(j = 0; j < grid.allObjects.length; j++){
+			objA = grid.allObjects[j];
+			objAAABB = objA.getAABB();
+			
+			// for all grids with cellsize larger than grid
+			for(k = i + 1; k < _grids.length; k++){
+				biggerGrid = _grids[k];
+				objAHashInBiggerGrid = biggerGrid.toHash(objAAABB.min[0], objAAABB.min[1]);
+				cell = biggerGrid.allCells[objAHashInBiggerGrid];
+				
+				// check objA against every object in all cells in offset array of cell
+				// for all adjacent cells...
+				for(c = 0; c < cell.neighborOffsetArray.length; c++){
+					offset = cell.neighborOffsetArray[c];
+
+					if(offset === null) { continue; }
+
+					adjacentCell = grid.allCells[ cell.allCellsIndex + offset ];
+					
+					// for all objects in the adjacent cell...
+					for(l = 0; l < adjacentCell.objectContainer.length; l++){
+						objB = adjacentCell.objectContainer[l];
+						// test against object A
+						if(broadOverlapTest(objA, objB) === true){
+							possibleCollisions.push( [ objA, objB ] );
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// return list of object pairs
+	return possibleCollisions;
+}
+
+function testAABBOverlap(objA, objB){
+	var  a = objA.getAABB()
+		,b = objB.getAABB();
+	
+	if(a.min[0] > b.max[0] || a.min[1] > b.max[1]
+	|| a.max[0] < b.min[0] || a.max[1] < b.min[1]){
+		return false;
+	} else {
+		return true;
+	}
 }
 
 function getLongestAABBEdge(min, max){
@@ -151,6 +329,7 @@ function Grid(cellSize, cellCount){
 	this.xyHashMask = this.rowColumnCount - 1;
 	this.occupiedCells = [];
 	this.allCells = Array(this.rowColumnCount*this.rowColumnCount);
+	this.allObjects = [];
 	this.sharedInnerOffsets = [];
 	this.totalObjects = 0;
 }
@@ -209,6 +388,7 @@ Grid.prototype.initCells = function(){
 			cell.neighborOffsetArray = this.sharedInnerOffsets;
 		}
 		
+		cell.allCellsIndex = i;
 		this.allCells[i] = cell;
 	}
 }
@@ -218,31 +398,44 @@ Grid.prototype.toHash = function(x, y){
 	
 	if(x < 0){
 		i = (-x) * this.inverseCellSize;
-		xHash = this.rowColumnCount - 1 - ( ~~x & this.xyHashMask );
+		xHash = this.rowColumnCount - 1 - ( ~~i & this.xyHashMask );
+		//xHash = this.rowColumnCount - 1 - ( ~~x % this.rowColumnCount);
 	} else {
 		i = x * this.inverseCellSize;
-		xHash = ~~x & this.xyHashMask;
+		xHash = ~~i & this.xyHashMask;
+		//xHash = (~~i) % this.rowColumnCount;
 	}
 	
 	if(y < 0){
 		i = (-y) * this.inverseCellSize;
-		yHash = this.rowColumnCount - 1 - ( ~~y & this.xyHashMask );
+		yHash = this.rowColumnCount - 1 - ( ~~i & this.xyHashMask );
+		//yHash = this.rowColumnCount - 1 - ( ~~y % this.rowColumnCount);
 	} else {
 		i = y * this.inverseCellSize;
-		yHash = ~~y & this.xyHashMask;
+		yHash = ~~i & this.xyHashMask;
+		//yHash = (~~i) % this.rowColumnCount;
 	}
 	
 	return xHash + yHash * this.rowColumnCount;
 }
 
-Grid.prototype.addObject = function(obj){
-	var  objAABB = obj.getAABB()
-		,objHash = this.toHash(objAABB.min[0], objAABB.min[1])
-		,targetCell = this.allCells[objHash];
+Grid.prototype.addObject = function(obj, hash){
+	var  objAABB
+		,objHash
+		,targetCell;
 	
-	if(targetCell.objectContainer === null){
+	// technically, this should save some computational effort when updating objects
+	if(hash !== undefined){
+		objHash = hash;
+	} else {
+		objAABB = obj.getAABB()
+		objHash = this.toHash(objAABB.min[0], objAABB.min[1])
+	}
+	targetCell = this.allCells[objHash];
+	
+	if(targetCell.objectContainer.length === 0){
 		// initialize container (this is probably not actually necessary)
-		targetCell.objectContainer = [];
+		//targetCell.objectContainer = [];
 		// insert this cell into occupied cells list
 		targetCell.occupiedCellsIndex = this.occupiedCells.length;
 		this.occupiedCells.push(targetCell);
@@ -252,17 +445,61 @@ Grid.prototype.addObject = function(obj){
 	obj.HSHG.objectContainerIndex = targetCell.objectContainer.length;
 	obj.HSHG.hash = objHash;
 	obj.HSHG.grid = this;
+	obj.HSHG.allGridObjectsIndex = this.allObjects.length;
 	// add obj to cell
 	targetCell.objectContainer.push(obj);
 	
 	// we can assume that the targetCell is already a member of the occupied list
 	
-	this.totalObjects += 1;
+	// add to grid-global object list
+	this.allObjects.push(obj);
 	
 	// do test for grid density
-	if(this.totalObjects / this.allCells.length > MAX_OBJECT_CELL_DENSITY){
+	if(this.allObjects.length / this.allCells.length > MAX_OBJECT_CELL_DENSITY){
 		// grid must be increased in size
 		this.expandGrid();
+	}
+}
+
+Grid.prototype.removeObject = function(obj){
+	var  meta = obj.HSHG
+		,hash
+		,containerIndex
+		,allGridObjectsIndex
+		,cell;
+	
+	hash = meta.hash;
+	containerIndex = meta.objectContainerIndex;
+	allGridObjectsIndex = meta.allGridObjectsIndex;
+	cell = this.allCells[hash];
+	
+	// remove object from cell object container
+	if(cell.objectContainer.length === 1){
+		// this is the last object in the cell, so reset it
+		cell.objectContainer.length = 0;	
+		
+		// special case if the cell is the newest in the list
+		if(cell.occupiedCellsIndex === this.occupiedCells.length - 1){
+			this.occupiedCells.pop();
+		} else {
+			this.occupiedCells[ cell.occupiedCellsIndex ] = this.occupiedCells.pop();
+		}
+		
+		cell.occupiedCellsIndex = null;
+	} else {
+		// special case if the obj is the newest in the container
+		if(containerIndex === cell.objectContainer.length - 1){
+			cell.objectContainer.pop();
+		} else {
+			cell.objectContainer[ containerIndex ] = cell.objectContainer.pop();
+		}
+	}
+	
+	// remove object from grid object list
+	if(allGridObjectsIndex === this.allObjects.length - 1){
+		this.allObjects.pop();
+	} else {
+		this.allObjects[ allGridObjectsIndex ] = this.allObjects.pop();
 	}
 }
 
@@ -303,9 +540,10 @@ Grid.prototype.expandGrid = function(){
 }
 
 function Cell(){
-	this.objectContainer = null;
+	this.objectContainer = [];
 	this.neighborOffsetArray;
 	this.occupiedCellsIndex = null;
+	this.allCellsIndex = null;
 }
 
 //---------------------------------------------------------------------
@@ -313,29 +551,15 @@ function Cell(){
 //---------------------------------------------------------------------
 
 root['HSHG'] = {
-	// mapScene: mapScene
-	//,reset: resetSpatialHash
-	//,findCandidatesForPointAtGridLevel: findCandidatesForPointAtGridLevel
-	//,drawGrid: drawGrid
-	//// mostly just for testing, should not be used except for getting status
-	//,_private: function(){
-	// 	return {
-	//		hash: _hash_
-	//		,hashLength: _hashLength_
-	//		,subLevels: _subLevels_
-	//		,gridCellSizeCache: _gridCellSizeCache_
-    //
-	//		,getLongestAABBEdge: getLongestAABBEdge
-	//		,getSubdivisionLevel: getSubdivisionLevel
-	//		,getGridCellSize: getGridCellSize
-	//		,toHashFromCellCoords: toHashFromCellCoords
-	//	}
-	//}
 	init: init
 	,addObject: addObject
+	,removeObject: removeObject
+	,update: update
+	,queryForCollisionPairs: queryForCollisionPairs
 	,_private: function(){ return {
 		 Grid: Grid
 		,_grids: _grids
+		,_globalObjects: _globalObjects
 	}}
 }
 
