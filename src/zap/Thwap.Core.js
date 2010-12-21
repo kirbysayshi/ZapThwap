@@ -325,9 +325,9 @@ Vertex.prototype.getVelocity = function(dest){
 	return dest;
 }
 Vertex.prototype.getBoundingBox = function(){
-	var  min = vec3.create()
-		,max = vec3.create()
-		,radius = vec3.create([this.rad, this.rad, 0]);
+	var  min = []
+		,max = []
+		,radius = [this.rad, this.rad, 0];
 	vec3.subtract(this.cpos, radius, min);
 	vec3.add(this.cpos, radius, max);
 	return {min: min, max: max};

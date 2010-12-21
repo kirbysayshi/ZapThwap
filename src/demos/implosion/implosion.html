@@ -16,6 +16,7 @@
 		<script src="../../zap/Key.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../../zap/Math.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/HSHG.js" type="text/javascript" charset="utf-8"></script>
 		<script type="text/javascript">
 var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
@@ -24,13 +25,15 @@ var  TWorld = new THWAP.World()
 	,tsInfo = $("#tsInfo")[0]
 	,tsStats = {}
 	,numZombies = 0
-	,maxZombies = 100
+	,maxZombies = 500
 	,zombieSize = 1
 	,zombieSpeed = 50000
 	,timerRef = 0
 	,flesh = vec3.create([$cWorld[0].width / 2, $cWorld[0].height / 2, 0])
 	,startdistance = 300
 	,i;	
+
+HSHG.init();
 
 for(i = 0; i < maxZombies; i++){
 	var t = (Math.PI * 2) * (i / maxZombies)
@@ -47,6 +50,8 @@ for(i = 0; i < maxZombies; i++){
 		});
 
 	TWorld.addBody(z);
+	z.computeBoundingBox();
+	HSHG.addObject(z);
 	numZombies++;
 }
 	
@@ -77,7 +82,7 @@ ZAP.CGLM
 //		.setSimTimeScale(0.01);
 //
 ZAP.CGLM.register(function priorityOne(dt, stats){
-	var i = 0, b, distance, dir = [];
+	var i = 0, b, distance, dir = [], collisions, pair;
 	
 	KEY.dispatcher();
 	
@@ -89,6 +94,17 @@ ZAP.CGLM.register(function priorityOne(dt, stats){
 	}
 	
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
+	
+	if(TWorld.handleCollisions == false){
+		HSHG.update();
+		collisions = HSHG.queryForCollisionPairs();
+
+		for(i = 0; i < collisions.length; i++){
+			pair = collisions[i];
+			pair[0].collideWithBody(pair[1]);
+		}
+	}	
+	
 	tsStats = stats;
 }, function priorityTwo(stats){
 	ctx.clearRect(0,0,600,600);
