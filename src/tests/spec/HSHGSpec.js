@@ -83,11 +83,11 @@ describe('HSHG', function(){
 		expect(p._grids[0].occupiedCells.length).toEqual(3);
 		expect(p._globalObjects.length).toEqual(3);
 		
-		HSHG.removeObject(v3);
+		HSHG.removeObject(v1);
 		p = HSHG._private(); // refresh the snapshot
 		expect(p._grids[0].occupiedCells.length).toEqual(2);
 		
-		expect(v3.HSHG).toBe(undefined); // metadata should be gone
+		expect(v1.HSHG).toBe(undefined); // metadata should be gone
 		expect(p._grids[0].allObjects.length).toEqual(2);
 		expect(p._globalObjects.length).toEqual(2);
 		
@@ -122,6 +122,35 @@ describe('HSHG', function(){
 		v1.x = 200;
 		HSHG.update();
 		expect(v1.HSHG.hash).toEqual(246);
+	});
+	
+	it('can expand when MAX_OBJECT_CELL_DENSITY is met', function(){
+		var i, v, p, max = 100, verts = [];
+		
+		HSHG.init();
+		
+		for(i = 1; i <= max; i++){
+			v = new Vertex({x : i * 10, y: 0, radius: 5});
+			verts.push( v );
+			HSHG.addObject(v);
+		}
+		
+		p = HSHG._private();
+		expect(p._grids[0].allObjects.length).toEqual(max);
+		expect(p._grids[0].occupiedCells.length).toEqual(max);
+		expect(p._globalObjects.length).toEqual(max);
+		
+		v = new Vertex({x : max*10, y: 0, radius: 5});
+		HSHG.addObject(v);
+		
+		p = HSHG._private();
+		//debugger;
+		expect(p._grids[0].allCells.length).toEqual(1024);
+		// under no circumstances should the number of occupied cells 
+		// be greater than the number of objs
+		expect(p._grids[0].occupiedCells.length).toBeLessThan(max+1);
+		expect(p._grids[0].occupiedCells.length).toEqual(max+1);
+		expect(p._globalObjects.length).toEqual(max+1);
 	});
 });
 
