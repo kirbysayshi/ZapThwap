@@ -85,7 +85,8 @@ function addObject(obj){
 
 function removeObject(obj){
 	var  meta = obj.HSHG
-		,globalObjectsIndex;
+		,globalObjectsIndex
+		,replacementObj;
 	
 	if(meta === undefined){
 		throw Error( obj + ' was not in the HSHG.' );
@@ -97,7 +98,9 @@ function removeObject(obj){
 	if(globalObjectsIndex === _globalObjects.length - 1){
 		_globalObjects.pop();
 	} else {
-		_globalObjects[ globalObjectsIndex ] = _globalObjects.pop();
+		replacementObj = _globalObjects.pop();
+		replacementObj.HSHG.globalObjectsIndex = globalObjectsIndex;
+		_globalObjects[ globalObjectsIndex ] = replacementObj;
 	}
 	
 	meta.grid.removeObject(obj);
@@ -466,7 +469,9 @@ Grid.prototype.removeObject = function(obj){
 		,hash
 		,containerIndex
 		,allGridObjectsIndex
-		,cell;
+		,cell
+		,replacementCell
+		,replacementObj;
 	
 	hash = meta.hash;
 	containerIndex = meta.objectContainerIndex;
@@ -478,11 +483,14 @@ Grid.prototype.removeObject = function(obj){
 		// this is the last object in the cell, so reset it
 		cell.objectContainer.length = 0;	
 		
-		// special case if the cell is the newest in the list
+		// remove cell from occupied list
 		if(cell.occupiedCellsIndex === this.occupiedCells.length - 1){
+			// special case if the cell is the newest in the list
 			this.occupiedCells.pop();
 		} else {
-			this.occupiedCells[ cell.occupiedCellsIndex ] = this.occupiedCells.pop();
+			replacementCell = this.occupiedCells.pop();
+			replacementCell.occupiedCellsIndex = cell.occupiedCellsIndex;
+			this.occupiedCells[ cell.occupiedCellsIndex ] = replacementCell;
 		}
 		
 		cell.occupiedCellsIndex = null;
@@ -491,7 +499,9 @@ Grid.prototype.removeObject = function(obj){
 		if(containerIndex === cell.objectContainer.length - 1){
 			cell.objectContainer.pop();
 		} else {
-			cell.objectContainer[ containerIndex ] = cell.objectContainer.pop();
+			replacementObj = cell.objectContainer.pop();
+			replacementObj.HSHG.objectContainerIndex = containerIndex;
+			cell.objectContainer[ containerIndex ] = replacementObj;
 		}
 	}
 	
@@ -499,7 +509,9 @@ Grid.prototype.removeObject = function(obj){
 	if(allGridObjectsIndex === this.allObjects.length - 1){
 		this.allObjects.pop();
 	} else {
-		this.allObjects[ allGridObjectsIndex ] = this.allObjects.pop();
+		replacementObj = this.allObjects.pop();
+		replacementObj.HSHG.allGridObjectsIndex = allGridObjectsIndex;
+		this.allObjects[ allGridObjectsIndex ] = replacementObj;
 	}
 }
 
@@ -513,22 +525,27 @@ Grid.prototype.expandGrid = function(){
 		,newCellCount = currentCellCount * 4 // double each dimension
 		,newRowColumnCount = ~~Math.sqrt(newCellCount)
 		,newXYHashMask = newRowColumnCount - 1
-		,allObjects = []
+		,allObjects = this.allObjects.slice(0)
 		,aCell
 		,push = Array.prototype.push;
 	
 	// make a list of all the objects
-	for(i = 0; i < this.occupiedCells.length; i++){
-		aCell = this.occupiedCells[i];
-		// this should be faster than concat
-		push.apply(allObjects, aCell.objectContainer);
+	//for(i = 0; i < this.occupiedCells.length; i++){
+	//	aCell = this.occupiedCells[i];
+	//	// this should be faster than concat
+	//	push.apply(allObjects, aCell.objectContainer);
+	//}
+	
+	// remove all objects
+	for(i = 0; i < allObjects.length; i++){
+		this.removeObject(allObjects[i]);
 	}
 	
 	// reset grid values
 	this.rowColumnCount = newRowColumnCount;
 	this.allCells = Array(this.rowColumnCount*this.rowColumnCount);
 	this.xyHashMask = newXYHashMask;
-	this.totalObjects = 0;
+	//this.totalObjects = 0;
 	
 	// initialize new cells
 	this.initCells();
