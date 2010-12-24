@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>numberedgrid</title>
+		
+	</head>
+	<body id="numberedgrid">
+		<canvas id="cvs" width="600" height="600"></canvas>
+		<script type="text/javascript">
+(function(){
+	
+	var ctx = document.getElementById('cvs').getContext('2d');
+	
+	function drawNumberedGrid(cellCount, cellSize, ctx){
+		var i ,col ,row
+			,rowColumnCount = ~~Math.sqrt(cellCount);
+		
+		ctx.strokeStyle = '#CCCCCC';
+		ctx.fillStyle = '#CCCCCCC';
+		
+		ctx.clearRect(0,0, 600,600);
+		
+		for(i = 0; i < cellCount; i++){
+			row = ~~(i / rowColumnCount);
+			col = ~~(i - (row*rowColumnCount));
+			
+			ctx.strokeRect(col*cellSize, row*cellSize, cellSize, cellSize);
+			ctx.fillText(i, col*cellSize + cellSize/4, row*cellSize + cellSize/2);
+		}
+	}
+	
+	function drawReverseNumberedGrid(cellCount, cellSize, ctx){
+		var i ,col ,row
+			,rowColumnCount = ~~Math.sqrt(cellCount)
+			,height = rowColumnCount*cellSize;
+		
+		ctx.strokeStyle = '#CCCCCC';
+		ctx.fillStyle = '#CCCCCCC';
+		
+		ctx.clearRect(0,0, 600,600);
+		
+		for(i = 0; i < cellCount; i++){
+			row = ~~(i / rowColumnCount);
+			col = ~~(i - (row*rowColumnCount));
+			
+			ctx.strokeRect(col*cellSize, height - (row*cellSize), cellSize, cellSize);
+			ctx.fillText(i, col*cellSize + cellSize/4, height - (row*cellSize) + cellSize/2);
+		}
+	}
+	
+	drawReverseNumberedGrid(256, 32, ctx);
+	
+})();
+
+
+		</script>
+	</body>
+</html>
