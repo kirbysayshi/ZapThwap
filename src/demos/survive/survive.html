@@ -16,6 +16,7 @@
 		<script src="../../zap/Key.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../../zap/Math.js" type="text/javascript" charset="utf-8"></script>
 		<script src="../../zap/ZAP.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../zap/HSHG.js" type="text/javascript" charset="utf-8"></script>
 		<script type="text/javascript">
 var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
@@ -93,14 +94,22 @@ var  TWorld = new THWAP.World()
 		return b;
 	})();	
 
-//TWorld
-//	.addBody(left)
-//	.addBody(right);
+HSHG.init();
+TWorld.handleCollisions = false;
+
+TWorld
+	.addBody(left)
+	.addBody(right);
 
 left
-	.moveTo([0,$cWorld[0].height - 100,0]);
+	.moveTo([0,$cWorld[0].height - 100,0])
+	.computeBoundingBox();
 right
-	.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0]);
+	.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0])
+	.computeBoundingBox();
+
+HSHG.addObject(left);
+HSHG.addObject(right);
 
 timerRef = setInterval(function(){
 	if(numZombies == maxZombies) { clearInterval(timerRef); return; }
@@ -122,6 +131,8 @@ timerRef = setInterval(function(){
 		});
 	
 	TWorld.addBody(p);
+	p.computeBoundingBox();
+	HSHG.addObject(p);
 	numZombies++;
 },spawnInterval);
 	
@@ -152,7 +163,7 @@ ZAP.CGLM
 //		.setSimTimeScale(0.01);
 //
 ZAP.CGLM.register(function priorityOne(dt, stats){
-	var i = 0, b, distance, dir = [];
+	var i = 0, b, distance, dir = [], collisions, pair;
 	
 	KEY.dispatcher();
 	
@@ -163,10 +174,20 @@ ZAP.CGLM.register(function priorityOne(dt, stats){
 		b.addAcceleration( vec3.scale(dir, zombieSpeed/distance*distance*0.5) );
 	}
 	
+	if(TWorld.handleCollisions == false){
+		HSHG.update();
+		collisions = HSHG.queryForCollisionPairs();
+
+		for(i = 0; i < collisions.length; i++){
+			pair = collisions[i];
+			pair[0].collideWithBody(pair[1]);
+		}
+	}
+	
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
 	tsStats = stats;
 }, function priorityTwo(stats){
-	//ctx.clearRect(0,0,600,600);
+	ctx.clearRect(0,0,600,600);
 	for(var i = 0; i < TWorld.blist.length; i++){
 		TWorld.blist[i].debugDraw(ctx, false, 0.7);
 	}
