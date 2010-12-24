@@ -56,7 +56,8 @@ World.prototype.addBody = function(b){
 	return this;
 }
 World.prototype.step = function(dt){
-	var  v = this.vlist.length-1
+	var  i, body
+		,v = this.vlist.length-1
 		,c = this.clist.length-1
 		,b = this.blist.length-1
 		,o = this.blist.length;
@@ -78,13 +79,13 @@ World.prototype.step = function(dt){
 
 	// update body orientations, bounding spheres/boxes, collide all bodies
 	while(b >= 0){
-		var body = this.blist[b]
+		body = this.blist[b]
 			.computeOrientationMatrix()
 			.computeBoundingSphere()
 			.computeBoundingBox();
 		
 		if( this.handleCollisions === true ){
-			for(var i = b - 1; i >= 0; i--){
+			for(i = b - 1; i >= 0; i--){
 				body.collideWithBody(this.blist[i]);
 			}
 		}
@@ -615,7 +616,7 @@ Body.prototype.computeBoundingBox = function(){
 	}
 	
 	this.aabb = {
-		min: pMin, max: pMax
+		min: min, max: max
 	};
 	
 	return this;
