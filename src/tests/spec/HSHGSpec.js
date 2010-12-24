@@ -7,15 +7,36 @@ describe('HSHG', function(){
 		expect(grid.rowColumnCount).toEqual(4);
 		grid.initCells();
 		
-		//  null	4		5		||	6	7	8
-		//  null	0		1		||	3	4	5
-		//  null	null	null	||	0	1	2
+		// cells			offsets
+		//  7	4	5		7	4	5
+		//  3	0	1		3	0	1
+		//  15	12	13		15	12	13
 		expect(grid.allCells[0].neighborOffsetArray).toEqual([
-			null, null, null, null, 0, 1, null, 4, 5
+			15, 12, 13, 3, 0, 1, 7, 4, 5
 		]);
 		
+		// cells			offsets
+		//	11	8	9		7	4	5
+		//	7	4	5		3	0	1
+		//	3	0	1		-1	-4	-3
 		expect(grid.allCells[4].neighborOffsetArray).toEqual([
-			null, -4, -3, null, 0, 1, null, 4, 5
+			-1, -4, -3, 3, 0, 1, 7, 4, 5
+		]);
+		
+		// cells			offsets
+		//	2	3	0		-13	-12	-15
+		//	14	15	12		-1	0	-3
+		//	10	11	8		-5	-4	-7
+		expect(grid.allCells[15].neighborOffsetArray).toEqual([
+			-5, -4, -7, -1, 0, -3, -13, -12, -15
+		]);
+		
+		// cells			offsets
+		//	13	14	15		3	4	5
+		//	9	10	11		-1	0	1
+		//	5	6	7		-5	-4	-3
+		expect(grid.allCells[10].neighborOffsetArray).toEqual([
+			-5, -4, -3, -1, 0, 1, 3, 4, 5
 		]);
 		
 		console.log(grid);

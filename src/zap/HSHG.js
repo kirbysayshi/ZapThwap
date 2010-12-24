@@ -1,4 +1,5 @@
 // Hierarchical Spatial Hash Grid: HSHG
+// TODO: make the private vars configurable to the outside
 
 (function(root, undefined){
 	
@@ -107,10 +108,6 @@ function removeObject(obj){
 	
 	// remove meta data
 	delete obj.HSHG;
-}
-
-function update(){
-	UPDATE_METHOD();
 }
 
 /**
@@ -233,7 +230,7 @@ function queryForCollisionPairs(broadOverlapTest){
 
 					if(offset === null) { continue; }
 
-					adjacentCell = grid.allCells[ cell.allCellsIndex + offset ];
+					adjacentCell = biggerGrid.allCells[ cell.allCellsIndex + offset ];
 					
 					// for all objects in the adjacent cell...
 					for(l = 0; l < adjacentCell.objectContainer.length; l++){
@@ -351,6 +348,7 @@ Grid.prototype.initCells = function(){
 			-1, 0, 1,
 			wh - 1, wh, wh + 1
 		]
+		,leftOffset, rightOffset, topOffset, bottomOffset
 		,uniqueOffsets = []
 		,cell;
 	
@@ -363,7 +361,7 @@ Grid.prototype.initCells = function(){
 		cell = new Cell();
 		// compute row (y) and column (x) for an index
 		y = ~~(i / this.rowColumnCount);
-		x = ~~(i - (y*this.rowColumnCount))
+		x = ~~(i - (y*this.rowColumnCount));
 		
 		// reset / init
 		isOnRightEdge = false;
@@ -372,20 +370,29 @@ Grid.prototype.initCells = function(){
 		isOnBottomEdge = false;
 		
 		// right or left edge cell
-		if(x+1 % this.rowColumnCount == 0){ isOnRightEdge = true; }
-		else if(x % this.rowColumnCount == 0){	isOnLeftEdge = true; }
+		if((x+1) % this.rowColumnCount == 0){ isOnRightEdge = true; }
+		else if(x % this.rowColumnCount == 0){ isOnLeftEdge = true; }
 		
 		// top or bottom edge cell
-		if(y+1 % this.rowColumnCount == 0){ isOnTopEdge = true; }
+		if((y+1) % this.rowColumnCount == 0){ isOnTopEdge = true; }
 		else if(y % this.rowColumnCount == 0){ isOnBottomEdge = true; }
 		
 		// if cell is edge cell, use unique offsets, otherwise use inner offsets
 		if(isOnRightEdge || isOnLeftEdge || isOnTopEdge || isOnBottomEdge){
+			
+			// figure out cardinal offsets first
+			rightOffset = isOnRightEdge === true ? -wh + 1 : 1;
+			leftOffset = isOnLeftEdge === true ? wh - 1 : -1;
+			topOffset = isOnTopEdge === true ? -gridLength + wh : wh;
+			bottomOffset = isOnBottomEdge === true ? gridLength - wh : -wh;
+			
+			// diagonals are composites of the cardinals			
 			uniqueOffsets = [ 
-				isOnLeftEdge || isOnBottomEdge ? null : -1 + -wh, isOnBottomEdge ? null : -wh, isOnRightEdge || isOnBottomEdge ? null : -wh + 1,
-				isOnLeftEdge ? null : -1, 0, isOnRightEdge ? null : 1,
-				isOnLeftEdge || isOnTopEdge ? null : wh - 1, isOnTopEdge ? null : wh, isOnRightEdge || isOnTopEdge ? null : wh + 1
+				leftOffset + bottomOffset, bottomOffset, rightOffset + bottomOffset,
+				leftOffset, 0, rightOffset,
+				leftOffset + topOffset, topOffset, rightOffset + topOffset
 			];
+			
 			cell.neighborOffsetArray = uniqueOffsets;
 		} else {
 			cell.neighborOffsetArray = this.sharedInnerOffsets;
@@ -571,7 +578,7 @@ root['HSHG'] = {
 	init: init
 	,addObject: addObject
 	,removeObject: removeObject
-	,update: update
+	,update: UPDATE_METHOD
 	,queryForCollisionPairs: queryForCollisionPairs
 	,_private: function(){ return {
 		 Grid: Grid
