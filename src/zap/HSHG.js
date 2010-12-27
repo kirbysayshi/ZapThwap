@@ -409,21 +409,17 @@ Grid.prototype.toHash = function(x, y){
 	if(x < 0){
 		i = (-x) * this.inverseCellSize;
 		xHash = this.rowColumnCount - 1 - ( ~~i & this.xyHashMask );
-		//xHash = this.rowColumnCount - 1 - ( ~~x % this.rowColumnCount);
 	} else {
 		i = x * this.inverseCellSize;
 		xHash = ~~i & this.xyHashMask;
-		//xHash = (~~i) % this.rowColumnCount;
 	}
 	
 	if(y < 0){
 		i = (-y) * this.inverseCellSize;
 		yHash = this.rowColumnCount - 1 - ( ~~i & this.xyHashMask );
-		//yHash = this.rowColumnCount - 1 - ( ~~y % this.rowColumnCount);
 	} else {
 		i = y * this.inverseCellSize;
 		yHash = ~~i & this.xyHashMask;
-		//yHash = (~~i) % this.rowColumnCount;
 	}
 	
 	return xHash + yHash * this.rowColumnCount;
@@ -434,7 +430,7 @@ Grid.prototype.addObject = function(obj, hash){
 		,objHash
 		,targetCell;
 	
-	// technically, this should save some computational effort when updating objects
+	// technically, passing this in this should save some computational effort when updating objects
 	if(hash !== undefined){
 		objHash = hash;
 	} else {
@@ -502,8 +498,9 @@ Grid.prototype.removeObject = function(obj){
 		
 		cell.occupiedCellsIndex = null;
 	} else {
-		// special case if the obj is the newest in the container
+		// there is more than one object in the container
 		if(containerIndex === cell.objectContainer.length - 1){
+			// special case if the obj is the newest in the container
 			cell.objectContainer.pop();
 		} else {
 			replacementObj = cell.objectContainer.pop();
@@ -532,27 +529,19 @@ Grid.prototype.expandGrid = function(){
 		,newCellCount = currentCellCount * 4 // double each dimension
 		,newRowColumnCount = ~~Math.sqrt(newCellCount)
 		,newXYHashMask = newRowColumnCount - 1
-		,allObjects = this.allObjects.slice(0)
+		,allObjects = this.allObjects.slice(0) // duplicate array, not objects contained
 		,aCell
 		,push = Array.prototype.push;
-	
-	// make a list of all the objects
-	//for(i = 0; i < this.occupiedCells.length; i++){
-	//	aCell = this.occupiedCells[i];
-	//	// this should be faster than concat
-	//	push.apply(allObjects, aCell.objectContainer);
-	//}
 	
 	// remove all objects
 	for(i = 0; i < allObjects.length; i++){
 		this.removeObject(allObjects[i]);
 	}
 	
-	// reset grid values
+	// reset grid values, set new grid to be 4x larger than last
 	this.rowColumnCount = newRowColumnCount;
 	this.allCells = Array(this.rowColumnCount*this.rowColumnCount);
 	this.xyHashMask = newXYHashMask;
-	//this.totalObjects = 0;
 	
 	// initialize new cells
 	this.initCells();
@@ -563,6 +552,12 @@ Grid.prototype.expandGrid = function(){
 	}
 }
 
+/**
+ * A cell of the grid
+ *
+ * @constructor
+ * @return  void   desc
+ */
 function Cell(){
 	this.objectContainer = [];
 	this.neighborOffsetArray;
