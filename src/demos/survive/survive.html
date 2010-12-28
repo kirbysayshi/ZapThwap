@@ -33,6 +33,7 @@ var  TWorld = new THWAP.World()
 	,rampSlope = 300
 	,flesh = vec3.create([$cWorld[0].width / 2, 300, 0])
 	,start = vec3.create([$cWorld[0].width / 2, $cWorld[0].height - 10, 0])
+	,h = new HSHG()
 	,left = (function(){
 		var b = new THWAP.Body();
 		var corners = [
@@ -94,7 +95,6 @@ var  TWorld = new THWAP.World()
 		return b;
 	})();	
 
-HSHG.init();
 TWorld.handleCollisions = false;
 
 TWorld
@@ -108,8 +108,8 @@ right
 	.moveTo([($cWorld[0].width/2)+zombieSize,$cWorld[0].height - 100,0])
 	.computeBoundingBox();
 
-HSHG.addObject(left);
-HSHG.addObject(right);
+h.addObject(left);
+h.addObject(right);
 
 timerRef = setInterval(function(){
 	if(numZombies == maxZombies) { clearInterval(timerRef); return; }
@@ -132,7 +132,7 @@ timerRef = setInterval(function(){
 	
 	TWorld.addBody(p);
 	p.computeBoundingBox();
-	HSHG.addObject(p);
+	h.addObject(p);
 	numZombies++;
 },spawnInterval);
 	
@@ -175,8 +175,8 @@ ZAP.CGLM.register(function priorityOne(dt, stats){
 	}
 	
 	if(TWorld.handleCollisions == false){
-		HSHG.update();
-		collisions = HSHG.queryForCollisionPairs();
+		h.update();
+		collisions = h.queryForCollisionPairs();
 
 		for(i = 0; i < collisions.length; i++){
 			pair = collisions[i];

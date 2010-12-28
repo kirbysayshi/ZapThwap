@@ -31,9 +31,8 @@ var  TWorld = new THWAP.World()
 	,timerRef = 0
 	,flesh = vec3.create([$cWorld[0].width / 2, $cWorld[0].height / 2, 0])
 	,startdistance = 300
+	,h = new HSHG()
 	,i;	
-
-HSHG.init();
 
 for(i = 0; i < maxZombies; i++){
 	var t = (Math.PI * 2) * (i / maxZombies)
@@ -51,7 +50,7 @@ for(i = 0; i < maxZombies; i++){
 
 	TWorld.addBody(z);
 	z.computeBoundingBox();
-	HSHG.addObject(z);
+	h.addObject(z);
 	numZombies++;
 }
 	
@@ -96,8 +95,8 @@ ZAP.CGLM.register(function priorityOne(dt, stats){
 	TWorld.step(dt*0.001); // dt comes in ms, Thwap needs seconds
 	
 	if(TWorld.handleCollisions == false){
-		HSHG.update();
-		collisions = HSHG.queryForCollisionPairs();
+		h.update();
+		collisions = h.queryForCollisionPairs();
 
 		for(i = 0; i < collisions.length; i++){
 			pair = collisions[i];
