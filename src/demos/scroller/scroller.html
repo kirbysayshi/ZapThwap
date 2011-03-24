@@ -21,7 +21,8 @@ var CanvasHero = function(){
 	
 	this.boxW = 10;
 	
-	this.physicsObject = new THWAP.Entities.CircleBox(this.boxW);
+	//this.physicsObject = new THWAP.Entities.CircleBox(this.boxW);
+	this.physicsObject = new THWAP.Entities.SingleVertexBody(this.boxW);
 	this.spriteObject = new ZAP.Entities.Sprite();
 	this.spriteObject.setAnimations(
 	[
@@ -94,18 +95,19 @@ var CanvasHero = function(){
 	//	this.physicsObject.vlist[2].cpos, 
 	//	this.physicsObject.vlist[3].cpos, 
 	//	[]), 0.5);
-	this.dangly = new THWAP.Vertex( vec3.add(this.physicsObject.boundingPos, [0,this.boxW,0], vec3.create()) );
-	//this.dangly = new THWAP.Vertex(danglyPos);
-	this.dangly.isCollidable = false;
-	//this.dangly.rad = this.boxW*0.5;
-	this.dangly.imass = 1/10;
-	this.physicsObject.vlist.push( this.dangly );
-	
-	//this.bubble = new THWAP.Vertex( this.physicsObject.boundingPos );
-	//this.bubble.rad = this.physicsObject.boundingRad;
-	//this.physicsObject.vlist.push( this.bubble );
-	
-	this.physicsObject.createConstraints(1);
+//	this.dangly = new THWAP.Vertex( vec3.add(this.physicsObject.boundingPos, [0,5,0], vec3.create()) );
+//	//this.dangly = new THWAP.Vertex(danglyPos);
+//	this.dangly.isCollidable = false;
+//	this.dangly.rad = 1;
+//	//this.dangly.rad = this.boxW*0.5;
+//	this.dangly.imass = 1/4;
+//	this.physicsObject.vlist.push( this.dangly );
+//	
+//	//this.bubble = new THWAP.Vertex( this.physicsObject.boundingPos );
+//	//this.bubble.rad = this.physicsObject.boundingRad;
+//	//this.physicsObject.vlist.push( this.bubble );
+//	
+//	this.physicsObject.createConstraints(1);
 	//var leash1 = new THWAP.LinearConstraint(this.physicsObject.vlist[3], dangly, 5);
 	//var leash2 = new THWAP.LinearConstraint(this.physicsObject.vlist[2], dangly, 5);
 	//leash1.collidable = false;
@@ -140,8 +142,8 @@ CanvasHero.prototype.draw = function(ctx, offset, scale){
 		,curAFrame = curAnimSeq[ this.spriteObject.aframe ];
 	
 	ctx.save();
-	ctx.translate((boundingPos[0]+offset[0])*scale, (boundingPos[1]+offset[1])*scale);
-	ctx.rotate(this.physicsObject.rotation);
+	ctx.translate((boundingPos[0]+offset[0])*scale, (boundingPos[1]+offset[1]-this.boxW/4)*scale);
+	//ctx.rotate(this.physicsObject.rotation);
 	ctx.drawImage(this.sheet, 
 		curAFrame.x, curAFrame.y, 
 		curAFrame.w, curAFrame.h,
@@ -165,7 +167,7 @@ var  TWorld = new THWAP.World()
 	,$cWorld = $("#cvsWorld")
 	,info = $("#info")[0]
 	,ctx = $cWorld[0].getContext('2d')
-	,drawingScale = 1
+	,drawingScale = 2
 	,hero = new CanvasHero()
 	,focus = hero.physicsObject
 	//,focus = new THWAP.Entities.SingleVertexBody(50)
