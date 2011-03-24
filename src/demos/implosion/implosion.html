@@ -25,7 +25,7 @@ var  TWorld = new THWAP.World()
 	,tsInfo = $("#tsInfo")[0]
 	,tsStats = {}
 	,numZombies = 0
-	,maxZombies = 700
+	,maxZombies = 200
 	,zombieSize = 1
 	,zombieSpeed = 50000
 	,timerRef = 0
@@ -43,7 +43,7 @@ for(i = 0; i < maxZombies; i++){
 	
 	z.moveTo(pos)
 		.setPassiveFriction(0.01)
-		.setCollisionFriction(0)
+		.setCollisionFriction(0.1)
 		.clist.forEach(function(c){
 			c.isCollidable = false;
 		});

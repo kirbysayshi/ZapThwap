@@ -25,7 +25,7 @@ var  TWorld = new THWAP.World()
 	,tsInfo = $("#tsInfo")[0]
 	,tsStats = {}
 	,numZombies = 0
-	,maxZombies = 100
+	,maxZombies = 30
 	,zombieSize = 2
 	,zombieSpeed = 500
 	,spawnInterval = 100
@@ -174,7 +174,7 @@ ZAP.CGLM.register(function priorityOne(dt, stats){
 		b.addAcceleration( vec3.scale(dir, zombieSpeed/distance*distance*0.5) );
 	}
 	
-	if(TWorld.handleCollisions == false){
+	if(TWorld.handleCollisions === false){
 		h.update();
 		collisions = h.queryForCollisionPairs();
 
@@ -189,7 +189,7 @@ ZAP.CGLM.register(function priorityOne(dt, stats){
 }, function priorityTwo(stats){
 	ctx.clearRect(0,0,600,600);
 	for(var i = 0; i < TWorld.blist.length; i++){
-		TWorld.blist[i].debugDraw(ctx, false, 0.7);
+		TWorld.blist[i].debugDraw(ctx, false, 1);
 	}
 	//console.log(TWorld.blist);
 	info.innerHTML = [

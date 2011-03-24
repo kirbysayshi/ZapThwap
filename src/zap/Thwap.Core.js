@@ -10,6 +10,7 @@
 //		so collision could be detected with a callback, but not auto-responded to
 // TODO: //THWAP.Instrumentation
 // TODO: Fix ZAP.CGLM timestep...
+// TODO: Rotational constraints?
 
 //---------------------------------------------------------------------
 // ThwapWorld
