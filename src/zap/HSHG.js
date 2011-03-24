@@ -187,7 +187,7 @@ HSHG.prototype.update = function(){
 	this.UPDATE_METHOD.call(this);
 }
 
-HSHG.prototype.queryForCollisionPairs = function(broadOverlapTest){
+HSHG.prototype.queryForCollisionPairs = function(broadOverlapTestCallback){
 	
 	var i, j, k, l, c
 		,grid
@@ -202,7 +202,7 @@ HSHG.prototype.queryForCollisionPairs = function(broadOverlapTest){
 		,possibleCollisions = []
 	
 	// default broad test to internal aabb overlap test
-	broadOverlapTest = broadOverlapTest || testAABBOverlap;
+	broadOverlapTest = broadOverlapTestCallback || testAABBOverlap;
 	
 	// for all grids ordered by cell size ASC
 	for(i = 0; i < this._grids.length; i++){
@@ -227,7 +227,7 @@ HSHG.prototype.queryForCollisionPairs = function(broadOverlapTest){
 			for(c = 0; c < 4; c++){
 				offset = cell.neighborOffsetArray[c];
 				
-				if(offset === null) { continue; }
+				//if(offset === null) { continue; }
 				
 				adjacentCell = grid.allCells[ cell.allCellsIndex + offset ];
 				
@@ -260,7 +260,7 @@ HSHG.prototype.queryForCollisionPairs = function(broadOverlapTest){
 				for(c = 0; c < cell.neighborOffsetArray.length; c++){
 					offset = cell.neighborOffsetArray[c];
 
-					if(offset === null) { continue; }
+					//if(offset === null) { continue; }
 
 					adjacentCell = biggerGrid.allCells[ cell.allCellsIndex + offset ];
 					
@@ -281,23 +281,28 @@ HSHG.prototype.queryForCollisionPairs = function(broadOverlapTest){
 	return possibleCollisions;
 }
 
+/**
+ * Draws an approximation of the HSHG
+ *
+ * @param  2dContext ctx  desc
+ * @param  array  startDim  the starting position to begin drawing
+ * @param  array  endDim  the ending position to stop drawing
+ * @return  void
+ */
 HSHG.prototype.drawGrid = function(ctx, startDim, endDim){
-	var subLevels = _subLevels_
-		,subLevelsLength = subLevels.length
+	var  gridCount = this._grids.length
 		,i, j, k
-		,subLevel
+		,grid
 		,gridCellSize
 		,rgb = [1, 1, 1];
 	
 	ctx.lineWidth = 1;
 		
-	for(i = 0; i < subLevelsLength; i++){
-		subLevel = subLevels[i];
-		
-		if(subLevel === undefined){ continue; }
+	for(i = 0; i < gridCount; i++){
+		grid = this._grids[i];
+		gridCellSize = grid.cellSize;
 	
 		ctx.beginPath();
-		gridCellSize = getGridCellSize( i );
 		
 		rgb[0] = 100;//30 * i;
 		rgb[1] = 100;//255 * Math.random();
@@ -358,9 +363,15 @@ Grid.prototype.initCells = function(){
 		,wh = this.rowColumnCount
 		,isOnRightEdge, isOnLeftEdge, isOnTopEdge, isOnBottomEdge
 		,innerOffsets = [ 
-			-1 + -wh, -wh, -wh + 1,
+			// y+ down offsets
+			//-1 + -wh, -wh, -wh + 1,
+			//-1, 0, 1,
+			//wh - 1, wh, wh + 1
+			
+			// y+ up offsets
+			wh - 1, wh, wh + 1,
 			-1, 0, 1,
-			wh - 1, wh, wh + 1
+			-1 + -wh, -wh, -wh + 1
 		]
 		,leftOffset, rightOffset, topOffset, bottomOffset
 		,uniqueOffsets = []
@@ -401,10 +412,16 @@ Grid.prototype.initCells = function(){
 			bottomOffset = isOnBottomEdge === true ? gridLength - wh : -wh;
 			
 			// diagonals are composites of the cardinals			
-			uniqueOffsets = [ 
-				leftOffset + bottomOffset, bottomOffset, rightOffset + bottomOffset,
+			uniqueOffsets = [
+				// y+ down offset
+				//leftOffset + bottomOffset, bottomOffset, rightOffset + bottomOffset,
+				//leftOffset, 0, rightOffset,
+				//leftOffset + topOffset, topOffset, rightOffset + topOffset
+				
+				// y+ up offset
+				leftOffset + topOffset, topOffset, rightOffset + topOffset,
 				leftOffset, 0, rightOffset,
-				leftOffset + topOffset, topOffset, rightOffset + topOffset
+				leftOffset + bottomOffset, bottomOffset, rightOffset + bottomOffset
 			];
 			
 			cell.neighborOffsetArray = uniqueOffsets;
