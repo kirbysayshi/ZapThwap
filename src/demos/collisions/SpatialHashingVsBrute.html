@@ -49,39 +49,19 @@ var  $cWorld = $("#cvsWorld")
 	,tsStats = {}
 	,ctx = $cWorld[0].getContext('2d')
 	,candidates
-	,twoBodies = [
-		 new Vertex({
-			name: 'left', x: 0, y: 0, radius: 50
-		})
-		,new Vertex({
-			name: 'right', x: 50, y: 0, radius: 50
-		})
-	]
-	,twoTestPoint = [80, 0]
-	,threeBodies = [
-		 new Vertex({
-			name: 'left', x: 100, y: 100, radius: 10
-		})
-		,new Vertex({
-			name: 'middle', x: 150, y: 150, radius: 100
-		})
-		,new Vertex({
-			name: 'right', x: 200, y: 100, radius: 10
-		})
-	]
 	,oneHundredVs = (function(){
 		var i = 0, vs = [];
-		for(; i < 50; i++){
+		for(; i < 20; i++){
 			vs.push(new Vertex({
-				name: i, x: 18*i, y: 10, radius: 10
+				name: i, x: 10*i, y: 10*i, radius: 10
 			}));
 		}
 		
-		for(i = 0; i < 50; i++){
-			vs.push(new Vertex({
-				name: i, x: (70+50)*i, y: 100, radius: 50
-			}));
-		}
+		//for(i = 0; i < 50; i++){
+		//	vs.push(new Vertex({
+		//		name: i, x: (70+50)*i, y: 100, radius: 50
+		//	}));
+		//}
 		
 		return vs;
 	})()
@@ -93,7 +73,8 @@ var  $cWorld = $("#cvsWorld")
 	,maxDim = [700, 700, 0]
 	,randomBodies = []
 	,randomTestPoints = []
-	,leftToSpawn = maxBodies;
+	,leftToSpawn = maxBodies
+	,h = new HSHG();
 
 //resetSpatialHash();
 //mapScene(twoBodies);
@@ -115,14 +96,7 @@ var  $cWorld = $("#cvsWorld")
 //drawPoint(threeTestPoint[0], threeTestPoint[1]);
 //drawHGrid(ctx, [0,0,0], [1000,1000,0]);
 
-HSHG.reset();
-HSHG.mapScene( oneHundredVs );
-var p = HSHG._private();
-console.log(p);
-HSHG.drawGrid(ctx, [0,0], [1000,1000]);
-oneHundredVs.forEach(function(e){ e.draw(ctx, 'rgba(142,142,142,0.5)'); });
-testCollisions( p.hash, oneHundredVs );
-
+testCollisions( h, oneHundredVs );
 
 function areEqual(name, a, b){
 	if( a !== b){
@@ -139,47 +113,19 @@ function drawPoint(x, y, color){
 	ctx.fill();
 }
 
-function testCollisions(hash, allBodies){
+function testCollisions(hshg, allBodies){
 	var ib = 0, iv1 = 0, iv2 = 0, bucket, v1, v2
-		,collisions = [], overkill = [], hashCollisionCount = 0, bruteCollisionCount = 0
+		,collisions
+		,hashCollisionCount = 0
+		,bruteCollisionCount = 0
+		,bruteOverkill = 0
 		,diffX, diffY, dist, radius2;
-
-	for(; ib < hash.length; ib++){
-		if(collisions[ib] == undefined) collisions[ib] = 0;
-		if(overkill[ib] == undefined) overkill[ib] = [];
-		bucket = hash[ib];
-		if(bucket !== undefined)
-		for(iv1 = 0; iv1 < bucket.length; iv1++){
-			v1 = bucket[iv1];
-			for(iv2 = iv1+1; iv2 < bucket.length; iv2++){
-				v2 = bucket[iv2];
-				diffX = v2.x - v1.x;
-				diffY = v2.y - v1.y;
-				dist = Math.sqrt(diffX*diffX + diffY*diffY);
-				radius2 = (v1.radius+v2.radius);
-				if( dist < radius2 ){
-					collisions[ib] += 1;
-					hashCollisionCount += 1;
-				} else if ( dist > radius2 * 1.2){
-					overkill[ib].push(dist);
-				}
-			}
-		}
-	}
-	
-	console.log(collisions);
-	console.log(overkill);
-	
-	console.log('hashed collisions detected: ' + hashCollisionCount);
-	
-	var total = 0;
-	overkill.forEach(function(obj){
-		total += obj.length;
-	});
-	console.log('total overkill: ' + total);
 	
 	for(iv1 = 0; iv1 < allBodies.length; iv1++){
 		v1 = allBodies[iv1];
+		v1.getAABB();
+		h.addObject(v1);
+		
 		for(iv2 = iv1+1; iv2 < allBodies.length; iv2++){
 			v2 = allBodies[iv2];
 			
@@ -190,10 +136,17 @@ function testCollisions(hash, allBodies){
 			if( dist < radius2 ){
 				bruteCollisionCount += 1;
 			}
+			bruteOverkill += 1;
 		}
 	}
 	
+	allBodies.forEach(function(e){ e.draw(ctx, 'rgba(142,142,142,0.5)'); });
+	h.drawGrid(ctx, [0,0,0], [1000,1000,0]);
+	
+	collisions = h.queryForCollisionPairs();
+	console.log('hashed collisions detected: ' + collisions.length);
 	console.log('brute collisions detected: ' + bruteCollisionCount);
+	console.log('brute collisions detection overkill: ' + bruteOverkill);
 }
 		</script>
 	</body>
